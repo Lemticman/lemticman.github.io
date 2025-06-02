@@ -427,7 +427,7 @@
         }
 
         .hidden {
-            display: none;
+            display: none !important;
         }
 
         .empty-column {
@@ -438,6 +438,16 @@
             color: #999;
             font-style: italic;
             text-align: center;
+        }
+
+        .debug-info {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            border: 1px solid #dee2e6;
         }
 
         @media (max-width: 768px) {
@@ -491,18 +501,22 @@
             
             <div class="demo-users">
                 <h3>🎯 Demo Users - Click to Login</h3>
-                <button class="demo-user" data-username="admin" data-password="admin123">
+                <button class="demo-user" onclick="quickLogin('admin', 'admin123')">
                     <strong>admin/admin123</strong> - Full system access
                 </button>
-                <button class="demo-user" data-username="manager" data-password="manager123">
+                <button class="demo-user" onclick="quickLogin('manager', 'manager123')">
                     <strong>manager/manager123</strong> - Team management access
                 </button>
-                <button class="demo-user" data-username="john" data-password="user123">
+                <button class="demo-user" onclick="quickLogin('john', 'user123')">
                     <strong>john/user123</strong> - Regular user access
                 </button>
-                <button class="demo-user" data-username="sarah" data-password="user123">
+                <button class="demo-user" onclick="quickLogin('sarah', 'user123')">
                     <strong>sarah/user123</strong> - Regular user access
                 </button>
+            </div>
+
+            <div class="debug-info" id="debugInfo">
+                Debug: Page loaded, waiting for user interaction...
             </div>
         </div>
     </div>
@@ -682,64 +696,174 @@
     </div>
 
     <script>
-        // Initialize demo data
-        const defaultUsers = [
-            { username: 'admin', password: 'admin123', role: 'admin', name: 'Admin User' },
-            { username: 'manager', password: 'manager123', role: 'manager', name: 'Manager User' },
-            { username: 'john', password: 'user123', role: 'user', name: 'John Doe' },
-            { username: 'sarah', password: 'user123', role: 'user', name: 'Sarah Smith' }
-        ];
-
+        // Global variables
         let currentUser = null;
-        let tasks = JSON.parse(localStorage.getItem('kanban_tasks')) || [];
-        let users = JSON.parse(localStorage.getItem('kanban_users')) || [];
+        let tasks = [];
+        let users = [];
         let draggedTask = null;
 
-        // Initialize users - merge default users with any existing ones
-        function initializeUsers() {
-            if (users.length === 0) {
-                users = [...defaultUsers];
-                localStorage.setItem('kanban_users', JSON.stringify(users));
-            } else {
-                // Ensure default users exist
-                defaultUsers.forEach(defaultUser => {
-                    if (!users.find(u => u.username === defaultUser.username)) {
-                        users.push(defaultUser);
-                    }
-                });
-                localStorage.setItem('kanban_users', JSON.stringify(users));
+        // Debug function
+        function debug(message) {
+            console.log('DEBUG:', message);
+            const debugElement = document.getElementById('debugInfo');
+            if (debugElement) {
+                debugElement.textContent = 'Debug: ' + message;
             }
         }
 
-        // Initialize users on page load
-        initializeUsers();
-
-        // DOM Elements
-        const loginScreen = document.getElementById('loginScreen');
-        const registerScreen = document.getElementById('registerScreen');
-        const mainApp = document.getElementById('mainApp');
-        const loginForm = document.getElementById('loginForm');
-        const registerForm = document.getElementById('registerForm');
-        const taskForm = document.getElementById('taskForm');
-        const managerConsole = document.getElementById('managerConsole');
-        const dashboardBtn = document.getElementById('dashboardBtn');
-
-        // Screen switching
-        document.getElementById('showRegisterBtn').addEventListener('click', () => {
-            loginScreen.classList.add('hidden');
-            registerScreen.classList.remove('hidden');
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            debug('Page loaded, initializing...');
+            initializeApp();
         });
 
-        document.getElementById('showLoginBtn').addEventListener('click', () => {
-            registerScreen.classList.add('hidden');
-            loginScreen.classList.remove('hidden');
-        });
+        function initializeApp() {
+            try {
+                debug('Loading data from localStorage...');
+                loadUsers();
+                loadTasks();
+                setupEventListeners();
+                debug('App initialized successfully!');
+            } catch (error) {
+                debug('Error initializing app: ' + error.message);
+                console.error('Initialization error:', error);
+            }
+        }
 
-        // Registration functionality
-        registerForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            register();
-        });
+        function loadUsers() {
+            const defaultUsers = [
+                { username: 'admin', password: 'admin123', role: 'admin', name: 'Admin User' },
+                { username: 'manager', password: 'manager123', role: 'manager', name: 'Manager User' },
+                { username: 'john', password: 'user123', role: 'user', name: 'John Doe' },
+                { username: 'sarah', password: 'user123', role: 'user', name: 'Sarah Smith' }
+            ];
+
+            try {
+                const storedUsers = localStorage.getItem('kanban_users');
+                if (storedUsers) {
+                    users = JSON.parse(storedUsers);
+                    debug(`Loaded ${users.length} users from storage`);
+                } else {
+                    users = [...defaultUsers];
+                    localStorage.setItem('kanban_users', JSON.stringify(users));
+                    debug('Created default users');
+                }
+            } catch (error) {
+                debug('Error loading users, using defaults');
+                users = [...defaultUsers];
+            }
+        }
+
+        function loadTasks() {
+            try {
+                const storedTasks = localStorage.getItem('kanban_tasks');
+                if (storedTasks) {
+                    tasks = JSON.parse(storedTasks);
+                    debug(`Loaded ${tasks.length} tasks from storage`);
+                } else {
+                    tasks = [];
+                    debug('No tasks found, starting with empty list');
+                }
+            } catch (error) {
+                debug('Error loading tasks, starting fresh');
+                tasks = [];
+            }
+        }
+
+        function setupEventListeners() {
+            debug('Setting up event listeners...');
+
+            // Login form
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const username = document.getElementById('username').value;
+                    const password = document.getElementById('password').value;
+                    debug(`Login attempt: ${username}`);
+                    login(username, password);
+                });
+            }
+
+            // Registration form
+            const registerForm = document.getElementById('registerForm');
+            if (registerForm) {
+                registerForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    debug('Registration attempt');
+                    register();
+                });
+            }
+
+            // Screen navigation
+            const showRegisterBtn = document.getElementById('showRegisterBtn');
+            if (showRegisterBtn) {
+                showRegisterBtn.addEventListener('click', function() {
+                    debug('Showing registration screen');
+                    showRegisterScreen();
+                });
+            }
+
+            const showLoginBtn = document.getElementById('showLoginBtn');
+            if (showLoginBtn) {
+                showLoginBtn.addEventListener('click', function() {
+                    debug('Showing login screen');
+                    showLoginScreen();
+                });
+            }
+
+            // Logout button
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', function() {
+                    debug('Logout clicked');
+                    logout();
+                });
+            }
+
+            // Task form
+            const taskForm = document.getElementById('taskForm');
+            if (taskForm) {
+                taskForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    debug('Adding new task');
+                    addTask();
+                });
+            }
+
+            // Dashboard button
+            const dashboardBtn = document.getElementById('dashboardBtn');
+            if (dashboardBtn) {
+                dashboardBtn.addEventListener('click', function() {
+                    debug('Dashboard toggle');
+                    toggleDashboard();
+                });
+            }
+
+            debug('Event listeners set up successfully');
+        }
+
+        // Quick login function for demo users
+        function quickLogin(username, password) {
+            debug(`Quick login: ${username}`);
+            document.getElementById('username').value = username;
+            document.getElementById('password').value = password;
+            login(username, password);
+        }
+
+        function login(username, password) {
+            debug(`Attempting login for: ${username}`);
+            const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
+            
+            if (user) {
+                currentUser = user;
+                debug(`Login successful for ${user.name} (${user.role})`);
+                showMainApp();
+            } else {
+                debug(`Login failed for ${username}`);
+                alert('Invalid username or password!\n\nTry:\n- admin/admin123\n- manager/manager123\n- john/user123\n- sarah/user123');
+            }
+        }
 
         function register() {
             const fullName = document.getElementById('regFullName').value.trim();
@@ -747,14 +871,15 @@
             const password = document.getElementById('regPassword').value;
             const confirmPassword = document.getElementById('regConfirmPassword').value;
 
-            // Validation
+            debug(`Registration attempt for: ${username}`);
+
             if (password !== confirmPassword) {
                 alert('Passwords do not match!');
                 return;
             }
 
-            if (password.length < 6) {
-                alert('Password must be at least 6 characters long!');
+            if (password.length < 3) {
+                alert('Password must be at least 3 characters long!');
                 return;
             }
 
@@ -763,7 +888,6 @@
                 return;
             }
 
-            // Create new user
             const newUser = {
                 username: username,
                 password: password,
@@ -774,48 +898,33 @@
             users.push(newUser);
             localStorage.setItem('kanban_users', JSON.stringify(users));
 
+            debug(`User registered successfully: ${username}`);
             alert('Account created successfully! You can now log in.');
             
-            // Clear form and go back to login
-            registerForm.reset();
-            registerScreen.classList.add('hidden');
-            loginScreen.classList.remove('hidden');
+            document.getElementById('registerForm').reset();
+            showLoginScreen();
             
-            // Auto-fill login form
+            // Pre-fill login form
             document.getElementById('username').value = username;
         }
 
-        // Login functionality
-        loginForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            login(username, password);
-        });
+        function showLoginScreen() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+        }
 
-        // Demo user login
-        document.querySelectorAll('.demo-user').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const username = btn.dataset.username;
-                const password = btn.dataset.password;
-                login(username, password);
-            });
-        });
-
-        function login(username, password) {
-            const user = users.find(u => u.username === username.toLowerCase() && u.password === password);
-            if (user) {
-                currentUser = user;
-                showMainApp();
-            } else {
-                alert('Invalid username or password! Try the demo users or create a new account.');
-                console.log('Available users:', users.map(u => ({username: u.username, password: u.password})));
-            }
+        function showRegisterScreen() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
         }
 
         function showMainApp() {
-            loginScreen.classList.add('hidden');
-            mainApp.classList.remove('hidden');
+            debug('Showing main app');
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
             
             // Update user info
             document.getElementById('userName').textContent = currentUser.name;
@@ -825,12 +934,13 @@
             
             // Show dashboard button for managers/admins
             if (currentUser.role === 'manager' || currentUser.role === 'admin') {
-                dashboardBtn.classList.remove('hidden');
+                document.getElementById('dashboardBtn').classList.remove('hidden');
             }
             
             populateAssigneeSelect();
             loadKanbanBoard();
             setupDragAndDrop();
+            debug('Main app loaded successfully');
         }
 
         function populateAssigneeSelect() {
@@ -845,210 +955,7 @@
             });
         }
 
-        // Task management
-        taskForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            addTask();
-        });
-
         function addTask() {
             const task = {
                 id: Date.now(),
                 title: document.getElementById('taskTitle').value,
-                description: document.getElementById('taskDescription').value,
-                priority: document.getElementById('taskPriority').value,
-                assignee: document.getElementById('taskAssignee').value,
-                dueDate: document.getElementById('taskDueDate').value,
-                status: 'todo',
-                createdBy: currentUser.username,
-                createdAt: new Date().toISOString()
-            };
-            
-            tasks.push(task);
-            saveTasks();
-            loadKanbanBoard();
-            taskForm.reset();
-        }
-
-        function loadKanbanBoard() {
-            const columns = ['todo', 'inprogress', 'review', 'done'];
-            
-            columns.forEach(status => {
-                const column = document.getElementById(`${status}Column`);
-                column.innerHTML = '';
-                
-                const userTasks = tasks.filter(task => {
-                    const hasAccess = currentUser.role === 'admin' || 
-                                    currentUser.role === 'manager' || 
-                                    task.assignee === currentUser.username || 
-                                    task.createdBy === currentUser.username;
-                    return task.status === status && hasAccess;
-                });
-                
-                if (userTasks.length === 0) {
-                    const emptyMessage = getEmptyMessage(status);
-                    column.innerHTML = `<div class="empty-column">${emptyMessage}</div>`;
-                } else {
-                    userTasks.forEach(task => {
-                        const taskElement = createTaskCard(task);
-                        column.appendChild(taskElement);
-                    });
-                }
-                
-                // Update task count
-                document.getElementById(`${status}Count`).textContent = userTasks.length;
-            });
-            
-            updateDashboard();
-        }
-
-        function getEmptyMessage(status) {
-            const messages = {
-                todo: 'Drop tasks here or add new ones ☝️',
-                inprogress: 'Drag tasks here when you start working',
-                review: 'Tasks ready for review go here',
-                done: 'Completed tasks will appear here'
-            };
-            return messages[status];
-        }
-
-        function createTaskCard(task) {
-            const div = document.createElement('div');
-            div.className = `task-card priority-${task.priority}`;
-            div.draggable = true;
-            div.dataset.taskId = task.id;
-            
-            const assigneeUser = users.find(u => u.username === task.assignee);
-            const creatorUser = users.find(u => u.username === task.createdBy);
-            
-            const canEdit = currentUser.role === 'admin' || 
-                           currentUser.role === 'manager' || 
-                           task.assignee === currentUser.username || 
-                           task.createdBy === currentUser.username;
-            
-            const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done';
-            
-            div.innerHTML = `
-                <div class="task-title">${task.title}</div>
-                ${task.description ? `<div class="task-description">${task.description}</div>` : ''}
-                <div class="task-meta">
-                    <span class="priority-badge ${task.priority}">${task.priority}</span>
-                    <span class="assignee-badge">${assigneeUser ? assigneeUser.name : 'Unassigned'}</span>
-                </div>
-                ${task.dueDate ? `<div class="due-date ${isOverdue ? 'overdue' : ''}">
-                    📅 ${new Date(task.dueDate).toLocaleDateString()}
-                    ${isOverdue ? ' (Overdue!)' : ''}
-                </div>` : ''}
-                ${canEdit ? `
-                    <div class="task-actions">
-                        <button class="btn btn-danger btn-small" onclick="deleteTask(${task.id})" title="Delete Task">
-                            🗑️
-                        </button>
-                    </div>
-                ` : ''}
-            `;
-            
-            // Add drag event listeners
-            div.addEventListener('dragstart', handleDragStart);
-            div.addEventListener('dragend', handleDragEnd);
-            
-            return div;
-        }
-
-        // Drag and Drop functionality
-        function setupDragAndDrop() {
-            const columns = document.querySelectorAll('.column-body');
-            
-            columns.forEach(column => {
-                column.addEventListener('dragover', handleDragOver);
-                column.addEventListener('drop', handleDrop);
-                column.addEventListener('dragenter', handleDragEnter);
-                column.addEventListener('dragleave', handleDragLeave);
-            });
-        }
-
-        function handleDragStart(e) {
-            draggedTask = this;
-            this.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/html', this.outerHTML);
-        }
-
-        function handleDragEnd(e) {
-            this.classList.remove('dragging');
-            
-            // Clean up drag over effects
-            document.querySelectorAll('.column-body').forEach(col => {
-                col.classList.remove('drag-over');
-            });
-        }
-
-        function handleDragOver(e) {
-            if (e.preventDefault) {
-                e.preventDefault();
-            }
-            e.dataTransfer.dropEffect = 'move';
-            return false;
-        }
-
-        function handleDragEnter(e) {
-            this.classList.add('drag-over');
-        }
-
-        function handleDragLeave(e) {
-            this.classList.remove('drag-over');
-        }
-
-        function handleDrop(e) {
-            if (e.stopPropagation) {
-                e.stopPropagation();
-            }
-            
-            this.classList.remove('drag-over');
-            
-            if (draggedTask) {
-                const taskId = parseInt(draggedTask.dataset.taskId);
-                const newStatus = this.dataset.status;
-                
-                // Check if user can move this task
-                const task = tasks.find(t => t.id === taskId);
-                const canEdit = currentUser.role === 'admin' || 
-                               currentUser.role === 'manager' || 
-                               task.assignee === currentUser.username || 
-                               task.createdBy === currentUser.username;
-                
-                if (canEdit) {
-                    moveTask(taskId, newStatus);
-                } else {
-                    alert('You do not have permission to move this task.');
-                }
-            }
-            
-            return false;
-        }
-
-        function moveTask(taskId, newStatus) {
-            const task = tasks.find(t => t.id === taskId);
-            if (task) {
-                task.status = newStatus;
-                saveTasks();
-                loadKanbanBoard();
-            }
-        }
-
-        function deleteTask(id) {
-            if (confirm('Are you sure you want to delete this task?')) {
-                tasks = tasks.filter(t => t.id !== id);
-                saveTasks();
-                loadKanbanBoard();
-            }
-        }
-
-        function saveTasks() {
-            localStorage.setItem('kanban_tasks', JSON.stringify(tasks));
-        }
-
-        // Dashboard functionality
-        dashboardBtn.addEventListener('click', () => {
-            managerConsole.classList.toggle('hidden');
-            updateDashboard();
