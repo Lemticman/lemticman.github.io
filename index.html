@@ -361,26 +361,26 @@
                     <label for="regConfirmPassword">Confirm Password</label>
                     <input type="password" id="regConfirmPassword" required placeholder="Confirm your password">
                 </div>
-                <div class="form-group" id="roleSelection" class="hidden">
-                    <label for="regRole">Role</label>
-                    <select id="regRole">
+                <div class="form-group">
+                    <label for="regRole">User Role</label>
+                    <select id="regRole" required>
                         <option value="user">User - Regular access</option>
                         <option value="business-manager">Business Unit Manager - Manages specific unit</option>
                         <option value="corporate-manager">Corporate Manager - Manages all units</option>
                         <option value="admin">Admin - Full system access</option>
                     </select>
-                    <small style="color: #666; font-size: 12px;">Only admins can assign roles</small>
+                    <small style="color: #666; font-size: 12px;" id="roleHelp">Select your role in the organization</small>
                 </div>
-                <div class="form-group" id="businessUnitSelection" class="hidden">
+                <div class="form-group">
                     <label for="regBusinessUnit">Business Unit</label>
-                    <select id="regBusinessUnit">
+                    <select id="regBusinessUnit" required>
                         <option value="corporate">Corporate</option>
                         <option value="leasing">Leasing</option>
                         <option value="sales">Sales</option>
                         <option value="marketing">Marketing</option>
                         <option value="finance">Finance</option>
                     </select>
-                    <small style="color: #666; font-size: 12px;">Select the business unit for this user</small>
+                    <small style="color: #666; font-size: 12px;">Select your business unit/department</small>
                 </div>
                 <button type="submit" class="btn" style="width: 100%;">Create Account</button>
             </form>
@@ -641,8 +641,8 @@
             const username = document.getElementById('regUsername').value.trim().toLowerCase();
             const password = document.getElementById('regPassword').value;
             const confirmPassword = document.getElementById('regConfirmPassword').value;
-            const role = isAdminCreatingUser ? document.getElementById('regRole').value : 'user';
-            const businessUnit = isAdminCreatingUser ? document.getElementById('regBusinessUnit').value : 'leasing';
+            const role = document.getElementById('regRole').value;
+            const businessUnit = document.getElementById('regBusinessUnit').value;
 
             console.log('Registration attempt for:', username, 'Role:', role, 'Unit:', businessUnit, 'Admin creating:', isAdminCreatingUser);
 
@@ -665,6 +665,29 @@
             if (users.find(u => u.username === username)) {
                 showMessage('Username already exists! Please choose a different one.', 'regStatusMessage');
                 return;
+            }
+
+            // Role validation for non-admin created accounts
+            if (!isAdminCreatingUser) {
+                // Regular users can only create certain roles
+                if (role === 'admin') {
+                    showMessage('Admin role can only be created by existing admins.', 'regStatusMessage');
+                    return;
+                }
+                
+                // Check if trying to create corporate manager
+                if (role === 'corporate-manager') {
+                    if (!confirm('You are creating a Corporate Manager account that will have access to ALL business units. Continue?')) {
+                        return;
+                    }
+                }
+                
+                // Check if trying to create business manager
+                if (role === 'business-manager') {
+                    if (!confirm(`You are creating a Business Manager account for ${businessUnit.toUpperCase()} unit. This role can manage all users and tasks in this unit. Continue?`)) {
+                        return;
+                    }
+                }
             }
 
             // Create new user
@@ -690,7 +713,7 @@
                     populateAssigneeSelect();
                 }, 2000);
             } else {
-                showMessage('Account created successfully! Redirecting to login...', 'regStatusMessage');
+                showMessage(`Account created successfully as ${role} in ${businessUnit} unit! Redirecting to login...`, 'regStatusMessage');
                 setTimeout(() => {
                     document.getElementById('registerForm').reset();
                     showLoginScreen();
@@ -711,20 +734,17 @@
             document.getElementById('registerScreen').classList.remove('hidden');
             document.getElementById('mainApp').classList.add('hidden');
             
-            // Show/hide role and business unit selection based on whether admin is creating user
-            const roleSelection = document.getElementById('roleSelection');
-            const businessUnitSelection = document.getElementById('businessUnitSelection');
+            // Update help text based on whether admin is creating user
+            const roleHelp = document.getElementById('roleHelp');
             
             if (isAdminCreatingUser) {
-                roleSelection.classList.remove('hidden');
-                businessUnitSelection.classList.remove('hidden');
                 document.querySelector('#registerScreen h2').textContent = '👤 Create New User (Admin)';
-                showMessage('Creating user as admin - you can select their role and business unit below.', 'regStatusMessage');
+                roleHelp.textContent = 'As admin, you can assign any role to this user';
+                showMessage('Creating user as admin - you have full control over role and business unit.', 'regStatusMessage');
             } else {
-                roleSelection.classList.add('hidden');
-                businessUnitSelection.classList.add('hidden');
                 document.querySelector('#registerScreen h2').textContent = '👤 Create Account';
-                showMessage('Fill out the form below to create your account.', 'regStatusMessage');
+                roleHelp.textContent = 'Select your role in the organization (Admin role requires existing admin approval)';
+                showMessage('Fill out the form below to create your account. Choose your role and department.', 'regStatusMessage');
             }
         }
 
