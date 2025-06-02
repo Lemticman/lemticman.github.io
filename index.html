@@ -135,9 +135,11 @@
         }
         .unit-corporate { background: #6c757d; color: white; }
         .unit-leasing { background: #17a2b8; color: white; }
-        .unit-sales { background: #fd7e14; color: white; }
-        .unit-marketing { background: #e83e8c; color: white; }
-        .unit-finance { background: #20c997; color: white; }
+        .unit-abattoir { background: #dc3545; color: white; }
+        .unit-genmeat { background: #fd7e14; color: white; }
+        .unit-porkland { background: #e83e8c; color: white; }
+        .unit-ranc { background: #20c997; color: white; }
+        .unit-greenatom { background: #28a745; color: white; }
         .task-form {
             background: white;
             padding: 30px;
@@ -290,6 +292,50 @@
                     <label for="username">Username</label>
                     <input type="text" id="username" required>
                 </div>
+
+    <!-- Business Units Management Screen -->
+    <div id="businessUnitsScreen" class="login-container hidden">
+        <div class="login-box" style="max-width: 600px;">
+            <h2>🏢 Business Units Management</h2>
+            <div id="unitsStatusMessage" class="status-message hidden"></div>
+            
+            <!-- Add New Business Unit -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h3>➕ Add New Business Unit</h3>
+                <form id="addUnitForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="unitId">Unit ID (lowercase, no spaces)</label>
+                            <input type="text" id="unitId" required placeholder="e.g., newunit">
+                        </div>
+                        <div class="form-group">
+                            <label for="unitName">Unit Name</label>
+                            <input type="text" id="unitName" required placeholder="e.g., New Unit">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="unitDescription">Description</label>
+                        <textarea id="unitDescription" rows="2" placeholder="Brief description of this business unit"></textarea>
+                    </div>
+                    <button type="submit" class="btn">Add Business Unit</button>
+                </form>
+            </div>
+            
+            <!-- Existing Business Units -->
+            <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h3>📋 Existing Business Units</h3>
+                <div id="businessUnitsList">
+                    <!-- Units will be populated here -->
+                </div>
+            </div>
+            
+            <div style="text-align: center;">
+                <button id="backToMainBtn" class="btn btn-secondary" style="width: 100%;">
+                    ← Back to Main App
+                </button>
+            </div>
+        </div>
+    </div>
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" id="password" required>
@@ -374,11 +420,7 @@
                 <div class="form-group">
                     <label for="regBusinessUnit">Business Unit</label>
                     <select id="regBusinessUnit" required>
-                        <option value="corporate">Corporate</option>
-                        <option value="leasing">Leasing</option>
-                        <option value="sales">Sales</option>
-                        <option value="marketing">Marketing</option>
-                        <option value="finance">Finance</option>
+                        <!-- Options will be populated dynamically -->
                     </select>
                     <small style="color: #666; font-size: 12px;">Select your business unit/department</small>
                 </div>
@@ -404,6 +446,7 @@
                     <span id="userName"></span>
                 </div>
                 <div>
+                    <button id="manageUnitsBtn" class="btn hidden" style="margin-right: 10px; background: #6f42c1;">🏢 Manage Units</button>
                     <button id="createUserBtn" class="btn hidden" style="margin-right: 10px;">👤 Create User</button>
                     <button id="logoutBtn" class="btn btn-secondary">Logout</button>
                 </div>
@@ -495,16 +538,28 @@
         let currentUser = null;
         let tasks = [];
         let users = [];
+        let businessUnits = [];
         let isAdminCreatingUser = false;
 
-        // Default users with business units
+        // Default users with your business units
         const defaultUsers = [
             { username: 'admin', password: 'admin123', role: 'admin', name: 'Admin User', businessUnit: 'corporate' },
             { username: 'corp-mgr', password: 'manager123', role: 'corporate-manager', name: 'Corporate Manager', businessUnit: 'corporate' },
             { username: 'lease-mgr', password: 'manager123', role: 'business-manager', name: 'Leasing Manager', businessUnit: 'leasing' },
-            { username: 'sales-mgr', password: 'manager123', role: 'business-manager', name: 'Sales Manager', businessUnit: 'sales' },
+            { username: 'abattoir-mgr', password: 'manager123', role: 'business-manager', name: 'Abattoir Manager', businessUnit: 'abattoir' },
             { username: 'john', password: 'user123', role: 'user', name: 'John Doe', businessUnit: 'leasing' },
-            { username: 'sarah', password: 'user123', role: 'user', name: 'Sarah Smith', businessUnit: 'sales' }
+            { username: 'sarah', password: 'user123', role: 'user', name: 'Sarah Smith', businessUnit: 'genmeat' }
+        ];
+
+        // Default business units
+        const defaultBusinessUnits = [
+            { id: 'corporate', name: 'Corporate', description: 'Corporate headquarters and administration' },
+            { id: 'leasing', name: 'Leasing', description: 'Property leasing and management' },
+            { id: 'abattoir', name: 'Abattoir', description: 'Abattoir operations and management' },
+            { id: 'genmeat', name: 'Genmeat', description: 'General meat processing and distribution' },
+            { id: 'porkland', name: 'Porkland', description: 'Pork processing and specialty products' },
+            { id: 'ranc', name: 'Ranc', description: 'Ranch operations and livestock management' },
+            { id: 'greenatom', name: 'Green Atom', description: 'Sustainable and green initiatives' }
         ];
 
         // Initialize on page load
@@ -520,7 +575,33 @@
         }
 
         function loadData() {
-            // Load users
+            loadBusinessUnits();
+            loadUsers();
+            loadTasks();
+        }
+
+        function loadBusinessUnits() {
+            try {
+                const storedUnits = localStorage.getItem('kanban_business_units');
+                if (storedUnits) {
+                    businessUnits = JSON.parse(storedUnits);
+                    // Ensure default units exist
+                    defaultBusinessUnits.forEach(defaultUnit => {
+                        if (!businessUnits.find(u => u.id === defaultUnit.id)) {
+                            businessUnits.push(defaultUnit);
+                        }
+                    });
+                } else {
+                    businessUnits = [...defaultBusinessUnits];
+                }
+                localStorage.setItem('kanban_business_units', JSON.stringify(businessUnits));
+                console.log('Business units loaded:', businessUnits.length);
+            } catch (error) {
+                console.error('Error loading business units:', error);
+                businessUnits = [...defaultBusinessUnits];
+            }
+        }
+        function loadUsers() {
             try {
                 const storedUsers = localStorage.getItem('kanban_users');
                 if (storedUsers) {
@@ -540,8 +621,8 @@
                 console.error('Error loading users:', error);
                 users = [...defaultUsers];
             }
-
-            // Load tasks
+        }
+        function loadTasks() {
             try {
                 const storedTasks = localStorage.getItem('kanban_tasks');
                 if (storedTasks) {
@@ -579,6 +660,11 @@
                 isAdminCreatingUser = true;
                 showRegisterScreen();
             });
+            
+            // Business units management
+            document.getElementById('manageUnitsBtn').addEventListener('click', showBusinessUnitsScreen);
+            document.getElementById('backToMainBtn').addEventListener('click', showMainApp);
+            document.getElementById('addUnitForm').addEventListener('submit', handleAddBusinessUnit);
             
             // Logout
             document.getElementById('logoutBtn').addEventListener('click', logout);
@@ -733,6 +819,10 @@
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('registerScreen').classList.remove('hidden');
             document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('businessUnitsScreen').classList.add('hidden');
+            
+            // Populate business units dropdown
+            populateBusinessUnitsDropdown();
             
             // Update help text based on whether admin is creating user
             const roleHelp = document.getElementById('roleHelp');
@@ -746,6 +836,18 @@
                 roleHelp.textContent = 'Select your role in the organization (Admin role requires existing admin approval)';
                 showMessage('Fill out the form below to create your account. Choose your role and department.', 'regStatusMessage');
             }
+        }
+
+        function populateBusinessUnitsDropdown() {
+            const select = document.getElementById('regBusinessUnit');
+            select.innerHTML = '';
+            
+            businessUnits.forEach(unit => {
+                const option = document.createElement('option');
+                option.value = unit.id;
+                option.textContent = unit.name;
+                select.appendChild(option);
+            });
         }
 
         function showMainApp() {
@@ -827,6 +929,13 @@
             document.getElementById('loginForm').reset();
             document.getElementById('adminCreateUser').classList.add('hidden');
             console.log('User logged out');
+        }
+
+        function showLoginScreen() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('businessUnitsScreen').classList.add('hidden');
         }
 
         function populateAssigneeSelect() {
