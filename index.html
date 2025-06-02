@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban Task Management System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-box h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #667eea;
+            font-size: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input[type="text"], input[type="password"], input[type="email"], select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: inline-block;
+            text-decoration: none;
+            text-align: center;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+
+        .demo-users {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .demo-users h3 {
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .demo-user {
+            display: block;
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .demo-user:hover {
+            background: #e9ecef;
+        }
+
+        .app-header {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .role-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .role-admin {
+            background: #dc3545;
+            color: white;
+        }
+
+        .role-manager {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .role-user {
+            background: #28a745;
+            color: white;
+        }
+
+        .task-form {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        /* Kanban Board Styles */
+        .kanban-board {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kanban-column {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .column-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0;
+            text-align: center;
+            font-weight: 600;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .column-header.todo {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .column-header.inprogress {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            color: #333;
+        }
+
+        .column-header.review {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #333;
+        }
+
+        .column-header.done {
+            background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+        }
+
+        .task-count {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 14px;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .column-body {
+            padding: 20px;
+            flex: 1;
+            min-height: 400px;
+            position: relative;
+        }
+
+        .column-body.drag-over {
+            background: #f0f8ff;
+            border: 2px dashed #667eea;
+        }
+
+        .task-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+            cursor: move;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .task-card.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+
+        .task-card.priority-high {
+            border-left-color: #dc3545;
+        }
+
+        .task-card.priority-medium {
+            border-left-color: #ffc107;
+        }
+
+        .task-card.priority-low {
+            border-left-color: #28a745;
+        }
+
+        .task-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .task-description {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .task-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .assignee-badge {
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+
+        .priority-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .priority-badge.high {
+            background: #dc3545;
+            color: white;
+        }
+
+        .priority-badge.medium {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .priority-badge.low {
+            background: #28a745;
+            color: white;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 5px;
+            justify-content: flex-end;
+        }
+
+        .task-actions button {
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 4px;
+        }
+
+        .due-date {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .due-date.overdue {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        /* Manager Console */
+        .manager-console {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .user-table th,
+        .user-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .user-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .empty-column {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+            font-style: italic;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .app-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .kanban-board {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 10px;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .kanban-board {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-box">
+            <h2>📋 Kanban Task Manager</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Login</button>
+            </form>
+            
+            <div class="demo-users">
+                <h3>🎯 Demo Users - Click to Login</h3>
+                <button class="demo-user" data-username="admin" data-password="admin123">
+                    <strong>admin/admin123</strong> - Full system access
+                </button>
+                <button class="demo-user" data-username="manager" data-password="manager123">
+                    <strong>manager/manager123</strong> - Team management access
+                </button>
+                <button class="demo-user" data-username="john" data-password="user123">
+                    <strong>john/user123</strong> - Regular user access
+                </button>
+                <button class="demo-user" data-username="sarah" data-password="user123">
+                    <strong>sarah/user123</strong> - Regular user access
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="hidden">
+        <div class="container">
+            <!-- Header -->
+            <div class="app-header">
+                <div class="user-info">
+                    <h1>📋 Kanban Task Manager</h1>
+                    <span id="userRole" class="role-badge"></span>
+                    <span id="userName"></span>
+                </div>
+                <div>
+                    <button id="dashboardBtn" class="btn hidden">📊 Dashboard</button>
+                    <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+                </div>
+            </div>
+
+            <!-- Manager Console -->
+            <div id="managerConsole" class="manager-console hidden">
+                <h3>📊 Manager Dashboard</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalTasks">0</div>
+                        <div class="stat-label">Total Tasks</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="todoTasks">0</div>
+                        <div class="stat-label">To Do</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="inprogressTasks">0</div>
+                        <div class="stat-label">In Progress</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="doneTasks">0</div>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                </div>
+                
+                <h4>👥 User Overview</h4>
+                <table class="user-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Role</th>
+                            <th>Total Tasks</th>
+                            <th>To Do</th>
+                            <th>In Progress</th>
+                            <th>Done</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userStats">
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Task Form -->
+            <div class="task-form">
+                <h3>➕ Add New Task</h3>
+                <form id="taskForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="taskTitle">Task Title</label>
+                            <input type="text" id="taskTitle" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="taskPriority">Priority</label>
+                            <select id="taskPriority" required>
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="taskAssignee">Assign To</label>
+                            <select id="taskAssignee" required>
+                                <option value="">Select User</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="taskDueDate">Due Date</label>
+                            <input type="date" id="taskDueDate">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="taskDescription">Description</label>
+                        <textarea id="taskDescription" rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="btn">Add Task</button>
+                </form>
+            </div>
+
+            <!-- Kanban Board -->
+            <div class="kanban-board">
+                <!-- To Do Column -->
+                <div class="kanban-column">
+                    <div class="column-header todo">
+                        📝 TO DO
+                        <span class="task-count" id="todoCount">0</span>
+                    </div>
+                    <div class="column-body" data-status="todo" id="todoColumn">
+                        <div class="empty-column">Drop tasks here or add new ones ☝️</div>
+                    </div>
+                </div>
+
+                <!-- In Progress Column -->
+                <div class="kanban-column">
+                    <div class="column-header inprogress">
+                        🔥 IN PROGRESS
+                        <span class="task-count" id="inprogressCount">0</span>
+                    </div>
+                    <div class="column-body" data-status="inprogress" id="inprogressColumn">
+                        <div class="empty-column">Drag tasks here when you start working</div>
+                    </div>
+                </div>
+
+                <!-- Review Column -->
+                <div class="kanban-column">
+                    <div class="column-header review">
+                        👀 REVIEW
+                        <span class="task-count" id="reviewCount">0</span>
+                    </div>
+                    <div class="column-body" data-status="review" id="reviewColumn">
+                        <div class="empty-column">Tasks ready for review go here</div>
+                    </div>
+                </div>
+
+                <!-- Done Column -->
+                <div class="kanban-column">
+                    <div class="column-header done">
+                        ✅ DONE
+                        <span class="task-count" id="doneCount">0</span>
+                    </div>
+                    <div class="column-body" data-status="done" id="doneColumn">
+                        <div class="empty-column">Completed tasks will appear here</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize demo data
+        const users = [
+            { username: 'admin', password: 'admin123', role: 'admin', name: 'Admin User' },
+            { username: 'manager', password: 'manager123', role: 'manager', name: 'Manager User' },
+            { username: 'john', password: 'user123', role: 'user', name: 'John Doe' },
+            { username: 'sarah', password: 'user123', role: 'user', name: 'Sarah Smith' }
+        ];
+
+        let currentUser = null;
+        let tasks = JSON.parse(localStorage.getItem('kanban_tasks')) || [];
+        let draggedTask = null;
+
+        // Save demo users to localStorage if not exists
+        if (!localStorage.getItem('users')) {
+            localStorage.setItem('users', JSON.stringify(users));
+        }
+
+        // DOM Elements
+        const loginScreen = document.getElementById('loginScreen');
+        const mainApp = document.getElementById('mainApp');
+        const loginForm = document.getElementById('loginForm');
+        const taskForm = document.getElementById('taskForm');
+        const managerConsole = document.getElementById('managerConsole');
+        const dashboardBtn = document.getElementById('dashboardBtn');
+
+        // Login functionality
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            login(username, password);
+        });
+
+        // Demo user login
+        document.querySelectorAll('.demo-user').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const username = btn.dataset.username;
+                const password = btn.dataset.password;
+                login(username, password);
+            });
+        });
+
+        function login(username, password) {
+            const user = users.find(u => u.username === username && u.password === password);
+            if (user) {
+                currentUser = user;
+                showMainApp();
+            } else {
+                alert('Invalid credentials!');
+            }
+        }
+
+        function showMainApp() {
+            loginScreen.classList.add('hidden');
+            mainApp.classList.remove('hidden');
+            
+            // Update user info
+            document.getElementById('userName').textContent = currentUser.name;
+            const roleElement = document.getElementById('userRole');
+            roleElement.textContent = currentUser.role;
+            roleElement.className = `role-badge role-${currentUser.role}`;
+            
+            // Show dashboard button for managers/admins
+            if (currentUser.role === 'manager' || currentUser.role === 'admin') {
+                dashboardBtn.classList.remove('hidden');
+            }
+            
+            populateAssigneeSelect();
+            loadKanbanBoard();
+            setupDragAndDrop();
+        }
+
+        function populateAssigneeSelect() {
+            const select = document.getElementById('taskAssignee');
+            select.innerHTML = '<option value="">Select User</option>';
+            
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.username;
+                option.textContent = user.name;
+                select.appendChild(option);
+            });
+        }
+
+        // Task management
+        taskForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            addTask();
+        });
+
+        function addTask() {
+            const task = {
+                id: Date.now(),
+                title: document.getElementById('taskTitle').value,
+                description: document.getElementById('taskDescription').value,
+                priority: document.getElementById('taskPriority').value,
+                assignee: document.getElementById('taskAssignee').value,
+                dueDate: document.getElementById('taskDueDate').value,
+                status: 'todo',
+                createdBy: currentUser.username,
+                createdAt: new Date().toISOString()
+            };
+            
+            tasks.push(task);
+            saveTasks();
+            loadKanbanBoard();
+            taskForm.reset();
+        }
+
+        function loadKanbanBoard() {
+            const columns = ['todo', 'inprogress', 'review', 'done'];
+            
+            columns.forEach(status => {
+                const column = document.getElementById(`${status}Column`);
+                column.innerHTML = '';
+                
+                const userTasks = tasks.filter(task => {
+                    const hasAccess = currentUser.role === 'admin' || 
+                                    currentUser.role === 'manager' || 
+                                    task.assignee === currentUser.username || 
+                                    task.createdBy === currentUser.username;
+                    return task.status === status && hasAccess;
+                });
+                
+                if (userTasks.length === 0) {
+                    const emptyMessage = getEmptyMessage(status);
+                    column.innerHTML = `<div class="empty-column">${emptyMessage}</div>`;
+                } else {
+                    userTasks.forEach(task => {
+                        const taskElement = createTaskCard(task);
+                        column.appendChild(taskElement);
+                    });
+                }
+                
+                // Update task count
+                document.getElementById(`${status}Count`).textContent = userTasks.length;
+            });
+            
+            updateDashboard();
+        }
+
+        function getEmptyMessage(status) {
+            const messages = {
+                todo: 'Drop tasks here or add new ones ☝️',
+                inprogress: 'Drag tasks here when you start working',
+                review: 'Tasks ready for review go here',
+                done: 'Completed tasks will appear here'
+            };
+            return messages[status];
+        }
+
+        function createTaskCard(task) {
+            const div = document.createElement('div');
+            div.className = `task-card priority-${task.priority}`;
+            div.draggable = true;
+            div.dataset.taskId = task.id;
+            
+            const assigneeUser = users.find(u => u.username === task.assignee);
+            const creatorUser = users.find(u => u.username === task.createdBy);
+            
+            const canEdit = currentUser.role === 'admin' || 
+                           currentUser.role === 'manager' || 
+                           task.assignee === currentUser.username || 
+                           task.createdBy === currentUser.username;
+            
+            const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done';
+            
+            div.innerHTML = `
+                <div class="task-title">${task.title}</div>
+                ${task.description ? `<div class="task-description">${task.description}</div>` : ''}
+                <div class="task-meta">
+                    <span class="priority-badge ${task.priority}">${task.priority}</span>
+                    <span class="assignee-badge">${assigneeUser ? assigneeUser.name : 'Unassigned'}</span>
+                </div>
+                ${task.dueDate ? `<div class="due-date ${isOverdue ? 'overdue' : ''}">
+                    📅 ${new Date(task.dueDate).toLocaleDateString()}
+                    ${isOverdue ? ' (Overdue!)' : ''}
+                </div>` : ''}
+                ${canEdit ? `
+                    <div class="task-actions">
+                        <button class="btn btn-danger btn-small" onclick="deleteTask(${task.id})" title="Delete Task">
+                            🗑️
+                        </button>
+                    </div>
+                ` : ''}
+            `;
+            
+            // Add drag event listeners
+            div.addEventListener('dragstart', handleDragStart);
+            div.addEventListener('dragend', handleDragEnd);
+            
+            return div;
+        }
+
+        // Drag and Drop functionality
+        function setupDragAndDrop() {
+            const columns = document.querySelectorAll('.column-body');
+            
+            columns.forEach(column => {
+                column.addEventListener('dragover', handleDragOver);
+                column.addEventListener('drop', handleDrop);
+                column.addEventListener('dragenter', handleDragEnter);
+                column.addEventListener('dragleave', handleDragLeave);
+            });
+        }
+
+        function handleDragStart(e) {
+            draggedTask = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.outerHTML);
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            
+            // Clean up drag over effects
+            document.querySelectorAll('.column-body').forEach(col => {
+                col.classList.remove('drag-over');
+            });
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDragEnter(e) {
+            this.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            
+            this.classList.remove('drag-over');
+            
+            if (draggedTask) {
+                const taskId = parseInt(draggedTask.dataset.taskId);
+                const newStatus = this.dataset.status;
+                
+                // Check if user can move this task
+                const task = tasks.find(t => t.id === taskId);
+                const canEdit = currentUser.role === 'admin' || 
+                               currentUser.role === 'manager' || 
+                               task.assignee === currentUser.username || 
+                               task.createdBy === currentUser.username;
+                
+                if (canEdit) {
+                    moveTask(taskId, newStatus);
+                } else {
+                    alert('You do not have permission to move this task.');
+                }
+            }
+            
+            return false;
+        }
+
+        function moveTask(taskId, newStatus) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                task.status = newStatus;
+                saveTasks();
+                loadKanbanBoard();
+            }
+        }
+
+        function deleteTask(id) {
+            if (confirm('Are you sure you want to delete this task?')) {
+                tasks = tasks.filter(t => t.id !== id);
+                saveTasks();
+                loadKanbanBoard();
+            }
+        }
+
+        function saveTasks() {
+            localStorage.setItem('kanban_tasks', JSON.stringify(tasks));
+        }
+
+        // Dashboard functionality
+        dashboardBtn.addEventListener('click', () => {
+            managerConsole.classList.toggle('hidden');
+            updateDashboard();
