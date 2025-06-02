@@ -501,16 +501,16 @@
             
             <div class="demo-users">
                 <h3>🎯 Demo Users - Click to Login</h3>
-                <button class="demo-user" onclick="quickLogin('admin', 'admin123')">
+                <button class="demo-user" onclick="doQuickLogin('admin', 'admin123')">
                     <strong>admin/admin123</strong> - Full system access
                 </button>
-                <button class="demo-user" onclick="quickLogin('manager', 'manager123')">
+                <button class="demo-user" onclick="doQuickLogin('manager', 'manager123')">
                     <strong>manager/manager123</strong> - Team management access
                 </button>
-                <button class="demo-user" onclick="quickLogin('john', 'user123')">
+                <button class="demo-user" onclick="doQuickLogin('john', 'user123')">
                     <strong>john/user123</strong> - Regular user access
                 </button>
-                <button class="demo-user" onclick="quickLogin('sarah', 'user123')">
+                <button class="demo-user" onclick="doQuickLogin('sarah', 'user123')">
                     <strong>sarah/user123</strong> - Regular user access
                 </button>
             </div>
@@ -696,7 +696,7 @@
     </div>
 
     <script>
-        // Global variables
+        // Global variables - define everything at the top
         let currentUser = null;
         let tasks = [];
         let users = [];
@@ -711,25 +711,15 @@
             }
         }
 
-        // Initialize everything when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            debug('Page loaded, initializing...');
-            initializeApp();
-        });
-
-        function initializeApp() {
-            try {
-                debug('Loading data from localStorage...');
-                loadUsers();
-                loadTasks();
-                setupEventListeners();
-                debug('App initialized successfully!');
-            } catch (error) {
-                debug('Error initializing app: ' + error.message);
-                console.error('Initialization error:', error);
-            }
+        // Quick login function - defined globally from the start
+        function doQuickLogin(username, password) {
+            debug(`Quick login attempt: ${username}`);
+            document.getElementById('username').value = username;
+            document.getElementById('password').value = password;
+            attemptLogin(username, password);
         }
 
+        // Load default users
         function loadUsers() {
             const defaultUsers = [
                 { username: 'admin', password: 'admin123', role: 'admin', name: 'Admin User' },
@@ -743,17 +733,25 @@
                 if (storedUsers) {
                     users = JSON.parse(storedUsers);
                     debug(`Loaded ${users.length} users from storage`);
+                    
+                    // Ensure default users still exist
+                    defaultUsers.forEach(defaultUser => {
+                        if (!users.find(u => u.username === defaultUser.username)) {
+                            users.push(defaultUser);
+                        }
+                    });
                 } else {
                     users = [...defaultUsers];
                     localStorage.setItem('kanban_users', JSON.stringify(users));
                     debug('Created default users');
                 }
             } catch (error) {
-                debug('Error loading users, using defaults');
+                debug('Error loading users, using defaults: ' + error.message);
                 users = [...defaultUsers];
             }
         }
 
+        // Load tasks
         function loadTasks() {
             try {
                 const storedTasks = localStorage.getItem('kanban_tasks');
@@ -765,93 +763,13 @@
                     debug('No tasks found, starting with empty list');
                 }
             } catch (error) {
-                debug('Error loading tasks, starting fresh');
+                debug('Error loading tasks, starting fresh: ' + error.message);
                 tasks = [];
             }
         }
 
-        function setupEventListeners() {
-            debug('Setting up event listeners...');
-
-            // Login form
-            const loginForm = document.getElementById('loginForm');
-            if (loginForm) {
-                loginForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    const username = document.getElementById('username').value;
-                    const password = document.getElementById('password').value;
-                    debug(`Login attempt: ${username}`);
-                    login(username, password);
-                });
-            }
-
-            // Registration form
-            const registerForm = document.getElementById('registerForm');
-            if (registerForm) {
-                registerForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    debug('Registration attempt');
-                    register();
-                });
-            }
-
-            // Screen navigation
-            const showRegisterBtn = document.getElementById('showRegisterBtn');
-            if (showRegisterBtn) {
-                showRegisterBtn.addEventListener('click', function() {
-                    debug('Showing registration screen');
-                    showRegisterScreen();
-                });
-            }
-
-            const showLoginBtn = document.getElementById('showLoginBtn');
-            if (showLoginBtn) {
-                showLoginBtn.addEventListener('click', function() {
-                    debug('Showing login screen');
-                    showLoginScreen();
-                });
-            }
-
-            // Logout button
-            const logoutBtn = document.getElementById('logoutBtn');
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', function() {
-                    debug('Logout clicked');
-                    logout();
-                });
-            }
-
-            // Task form
-            const taskForm = document.getElementById('taskForm');
-            if (taskForm) {
-                taskForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    debug('Adding new task');
-                    addTask();
-                });
-            }
-
-            // Dashboard button
-            const dashboardBtn = document.getElementById('dashboardBtn');
-            if (dashboardBtn) {
-                dashboardBtn.addEventListener('click', function() {
-                    debug('Dashboard toggle');
-                    toggleDashboard();
-                });
-            }
-
-            debug('Event listeners set up successfully');
-        }
-
-        // Quick login function for demo users
-        function quickLogin(username, password) {
-            debug(`Quick login: ${username}`);
-            document.getElementById('username').value = username;
-            document.getElementById('password').value = password;
-            login(username, password);
-        }
-
-        function login(username, password) {
+        // Login function
+        function attemptLogin(username, password) {
             debug(`Attempting login for: ${username}`);
             const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
             
@@ -861,17 +779,23 @@
                 showMainApp();
             } else {
                 debug(`Login failed for ${username}`);
-                alert('Invalid username or password!\n\nTry:\n- admin/admin123\n- manager/manager123\n- john/user123\n- sarah/user123');
+                alert(`Login failed!\n\nAvailable demo users:\n- admin/admin123\n- manager/manager123\n- john/user123\n- sarah/user123\n\nOr create a new account!`);
             }
         }
 
-        function register() {
+        // Registration function
+        function doRegister() {
             const fullName = document.getElementById('regFullName').value.trim();
             const username = document.getElementById('regUsername').value.trim().toLowerCase();
             const password = document.getElementById('regPassword').value;
             const confirmPassword = document.getElementById('regConfirmPassword').value;
 
             debug(`Registration attempt for: ${username}`);
+
+            if (!fullName || !username || !password) {
+                alert('Please fill in all fields!');
+                return;
+            }
 
             if (password !== confirmPassword) {
                 alert('Passwords do not match!');
@@ -908,6 +832,7 @@
             document.getElementById('username').value = username;
         }
 
+        // Screen management
         function showLoginScreen() {
             document.getElementById('loginScreen').classList.remove('hidden');
             document.getElementById('registerScreen').classList.add('hidden');
@@ -955,6 +880,7 @@
             });
         }
 
+        // Task management
         function addTask() {
             const task = {
                 id: Date.now(),
@@ -1010,191 +936,4 @@
             updateDashboard();
         }
 
-        function getEmptyMessage(status) {
-            const messages = {
-                todo: 'Drop tasks here or add new ones ☝️',
-                inprogress: 'Drag tasks here when you start working',
-                review: 'Tasks ready for review go here',
-                done: 'Completed tasks will appear here'
-            };
-            return messages[status];
-        }
-
-        function createTaskCard(task) {
-            const div = document.createElement('div');
-            div.className = `task-card priority-${task.priority}`;
-            div.draggable = true;
-            div.dataset.taskId = task.id;
-            
-            const assigneeUser = users.find(u => u.username === task.assignee);
-            const canEdit = currentUser.role === 'admin' || 
-                           currentUser.role === 'manager' || 
-                           task.assignee === currentUser.username || 
-                           task.createdBy === currentUser.username;
-            
-            const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done';
-            
-            div.innerHTML = `
-                <div class="task-title">${task.title}</div>
-                ${task.description ? `<div class="task-description">${task.description}</div>` : ''}
-                <div class="task-meta">
-                    <span class="priority-badge ${task.priority}">${task.priority}</span>
-                    <span class="assignee-badge">${assigneeUser ? assigneeUser.name : 'Unassigned'}</span>
-                </div>
-                ${task.dueDate ? `<div class="due-date ${isOverdue ? 'overdue' : ''}">
-                    📅 ${new Date(task.dueDate).toLocaleDateString()}
-                    ${isOverdue ? ' (Overdue!)' : ''}
-                </div>` : ''}
-                ${canEdit ? `
-                    <div class="task-actions">
-                        <button class="btn btn-danger btn-small" onclick="deleteTask(${task.id})" title="Delete Task">
-                            🗑️
-                        </button>
-                    </div>
-                ` : ''}
-            `;
-            
-            div.addEventListener('dragstart', handleDragStart);
-            div.addEventListener('dragend', handleDragEnd);
-            
-            return div;
-        }
-
-        function deleteTask(id) {
-            if (confirm('Are you sure you want to delete this task?')) {
-                tasks = tasks.filter(t => t.id !== id);
-                saveTasks();
-                loadKanbanBoard();
-                debug('Task deleted');
-            }
-        }
-
-        function setupDragAndDrop() {
-            const columns = document.querySelectorAll('.column-body');
-            
-            columns.forEach(column => {
-                column.addEventListener('dragover', handleDragOver);
-                column.addEventListener('drop', handleDrop);
-                column.addEventListener('dragenter', handleDragEnter);
-                column.addEventListener('dragleave', handleDragLeave);
-            });
-        }
-
-        function handleDragStart(e) {
-            draggedTask = this;
-            this.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-        }
-
-        function handleDragEnd(e) {
-            this.classList.remove('dragging');
-            document.querySelectorAll('.column-body').forEach(col => {
-                col.classList.remove('drag-over');
-            });
-        }
-
-        function handleDragOver(e) {
-            if (e.preventDefault) {
-                e.preventDefault();
-            }
-            e.dataTransfer.dropEffect = 'move';
-            return false;
-        }
-
-        function handleDragEnter(e) {
-            this.classList.add('drag-over');
-        }
-
-        function handleDragLeave(e) {
-            this.classList.remove('drag-over');
-        }
-
-        function handleDrop(e) {
-            if (e.stopPropagation) {
-                e.stopPropagation();
-            }
-            
-            this.classList.remove('drag-over');
-            
-            if (draggedTask) {
-                const taskId = parseInt(draggedTask.dataset.taskId);
-                const newStatus = this.dataset.status;
-                
-                const task = tasks.find(t => t.id === taskId);
-                const canEdit = currentUser.role === 'admin' || 
-                               currentUser.role === 'manager' || 
-                               task.assignee === currentUser.username || 
-                               task.createdBy === currentUser.username;
-                
-                if (canEdit) {
-                    moveTask(taskId, newStatus);
-                } else {
-                    alert('You do not have permission to move this task.');
-                }
-            }
-            
-            return false;
-        }
-
-        function moveTask(taskId, newStatus) {
-            const task = tasks.find(t => t.id === taskId);
-            if (task) {
-                task.status = newStatus;
-                saveTasks();
-                loadKanbanBoard();
-                debug(`Task moved to ${newStatus}`);
-            }
-        }
-
-        function toggleDashboard() {
-            const console = document.getElementById('managerConsole');
-            console.classList.toggle('hidden');
-            if (!console.classList.contains('hidden')) {
-                updateDashboard();
-            }
-        }
-
-        function updateDashboard() {
-            if (currentUser.role !== 'admin' && currentUser.role !== 'manager') return;
-            
-            const totalTasks = tasks.length;
-            const todoTasks = tasks.filter(t => t.status === 'todo').length;
-            const inprogressTasks = tasks.filter(t => t.status === 'inprogress').length;
-            const doneTasks = tasks.filter(t => t.status === 'done').length;
-            
-            document.getElementById('totalTasks').textContent = totalTasks;
-            document.getElementById('todoTasks').textContent = todoTasks;
-            document.getElementById('inprogressTasks').textContent = inprogressTasks;
-            document.getElementById('doneTasks').textContent = doneTasks;
-            
-            const userStatsContainer = document.getElementById('userStats');
-            userStatsContainer.innerHTML = '';
-            
-            users.forEach(user => {
-                const userTasks = tasks.filter(t => t.assignee === user.username);
-                const userTodo = userTasks.filter(t => t.status === 'todo').length;
-                const userInProgress = userTasks.filter(t => t.status === 'inprogress').length;
-                const userDone = userTasks.filter(t => t.status === 'done').length;
-                
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${user.name}</td>
-                    <td><span class="role-badge role-${user.role}">${user.role}</span></td>
-                    <td>${userTasks.length}</td>
-                    <td>${userTodo}</td>
-                    <td>${userInProgress}</td>
-                    <td>${userDone}</td>
-                `;
-                userStatsContainer.appendChild(row);
-            });
-        }
-
-        function logout() {
-            currentUser = null;
-            showLoginScreen();
-            document.getElementById('loginForm').reset();
-            debug('User logged out');
-        }
-
-        // Make quickLogin available globally
-        window.quickLogin = quickLogin;
+        function getEmpty
