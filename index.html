@@ -483,6 +483,12 @@
                 <button type="submit" class="btn" style="width: 100%;">Login</button>
             </form>
             
+            <div style="text-align: center; margin: 20px 0;">
+                <button id="showRegisterBtn" class="btn btn-secondary" style="width: 100%;">
+                    👤 Create New Account
+                </button>
+            </div>
+            
             <div class="demo-users">
                 <h3>🎯 Demo Users - Click to Login</h3>
                 <button class="demo-user" data-username="admin" data-password="admin123">
@@ -496,6 +502,38 @@
                 </button>
                 <button class="demo-user" data-username="sarah" data-password="user123">
                     <strong>sarah/user123</strong> - Regular user access
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Registration Screen -->
+    <div id="registerScreen" class="login-container hidden">
+        <div class="login-box">
+            <h2>👤 Create Account</h2>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="regFullName">Full Name</label>
+                    <input type="text" id="regFullName" required>
+                </div>
+                <div class="form-group">
+                    <label for="regUsername">Username</label>
+                    <input type="text" id="regUsername" required>
+                </div>
+                <div class="form-group">
+                    <label for="regPassword">Password</label>
+                    <input type="password" id="regPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="regConfirmPassword">Confirm Password</label>
+                    <input type="password" id="regConfirmPassword" required>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Create Account</button>
+            </form>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button id="showLoginBtn" class="btn btn-secondary" style="width: 100%;">
+                    ← Back to Login
                 </button>
             </div>
         </div>
@@ -645,7 +683,7 @@
 
     <script>
         // Initialize demo data
-        const users = [
+        const defaultUsers = [
             { username: 'admin', password: 'admin123', role: 'admin', name: 'Admin User' },
             { username: 'manager', password: 'manager123', role: 'manager', name: 'Manager User' },
             { username: 'john', password: 'user123', role: 'user', name: 'John Doe' },
@@ -654,20 +692,98 @@
 
         let currentUser = null;
         let tasks = JSON.parse(localStorage.getItem('kanban_tasks')) || [];
+        let users = JSON.parse(localStorage.getItem('kanban_users')) || [];
         let draggedTask = null;
 
-        // Save demo users to localStorage if not exists
-        if (!localStorage.getItem('users')) {
-            localStorage.setItem('users', JSON.stringify(users));
+        // Initialize users - merge default users with any existing ones
+        function initializeUsers() {
+            if (users.length === 0) {
+                users = [...defaultUsers];
+                localStorage.setItem('kanban_users', JSON.stringify(users));
+            } else {
+                // Ensure default users exist
+                defaultUsers.forEach(defaultUser => {
+                    if (!users.find(u => u.username === defaultUser.username)) {
+                        users.push(defaultUser);
+                    }
+                });
+                localStorage.setItem('kanban_users', JSON.stringify(users));
+            }
         }
+
+        // Initialize users on page load
+        initializeUsers();
 
         // DOM Elements
         const loginScreen = document.getElementById('loginScreen');
+        const registerScreen = document.getElementById('registerScreen');
         const mainApp = document.getElementById('mainApp');
         const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
         const taskForm = document.getElementById('taskForm');
         const managerConsole = document.getElementById('managerConsole');
         const dashboardBtn = document.getElementById('dashboardBtn');
+
+        // Screen switching
+        document.getElementById('showRegisterBtn').addEventListener('click', () => {
+            loginScreen.classList.add('hidden');
+            registerScreen.classList.remove('hidden');
+        });
+
+        document.getElementById('showLoginBtn').addEventListener('click', () => {
+            registerScreen.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+        });
+
+        // Registration functionality
+        registerForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            register();
+        });
+
+        function register() {
+            const fullName = document.getElementById('regFullName').value.trim();
+            const username = document.getElementById('regUsername').value.trim().toLowerCase();
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('regConfirmPassword').value;
+
+            // Validation
+            if (password !== confirmPassword) {
+                alert('Passwords do not match!');
+                return;
+            }
+
+            if (password.length < 6) {
+                alert('Password must be at least 6 characters long!');
+                return;
+            }
+
+            if (users.find(u => u.username === username)) {
+                alert('Username already exists! Please choose a different one.');
+                return;
+            }
+
+            // Create new user
+            const newUser = {
+                username: username,
+                password: password,
+                role: 'user',
+                name: fullName
+            };
+
+            users.push(newUser);
+            localStorage.setItem('kanban_users', JSON.stringify(users));
+
+            alert('Account created successfully! You can now log in.');
+            
+            // Clear form and go back to login
+            registerForm.reset();
+            registerScreen.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+            
+            // Auto-fill login form
+            document.getElementById('username').value = username;
+        }
 
         // Login functionality
         loginForm.addEventListener('submit', (e) => {
@@ -687,12 +803,13 @@
         });
 
         function login(username, password) {
-            const user = users.find(u => u.username === username && u.password === password);
+            const user = users.find(u => u.username === username.toLowerCase() && u.password === password);
             if (user) {
                 currentUser = user;
                 showMainApp();
             } else {
-                alert('Invalid credentials!');
+                alert('Invalid username or password! Try the demo users or create a new account.');
+                console.log('Available users:', users.map(u => ({username: u.username, password: u.password})));
             }
         }
 
