@@ -288,6 +288,13 @@
                 </button>
             </div>
             
+            <!-- Admin User Creation Button (only shown when admin is logged in) -->
+            <div id="adminCreateUser" style="text-align: center; margin: 10px 0;" class="hidden">
+                <button id="showAdminRegisterBtn" class="btn" style="width: 100%; background: #dc3545;">
+                    👤 Create User (Admin)
+                </button>
+            </div>
+            
             <div class="demo-users">
                 <h3>🎯 Demo Users</h3>
                 <p style="margin-bottom: 15px; color: #666; font-size: 14px;">
@@ -334,6 +341,15 @@
                     <label for="regConfirmPassword">Confirm Password</label>
                     <input type="password" id="regConfirmPassword" required placeholder="Confirm your password">
                 </div>
+                <div class="form-group" id="roleSelection" class="hidden">
+                    <label for="regRole">Role</label>
+                    <select id="regRole">
+                        <option value="user">User - Regular access</option>
+                        <option value="manager">Manager - Team management</option>
+                        <option value="admin">Admin - Full system access</option>
+                    </select>
+                    <small style="color: #666; font-size: 12px;">Only admins can assign roles</small>
+                </div>
                 <button type="submit" class="btn" style="width: 100%;">Create Account</button>
             </form>
             
@@ -355,6 +371,7 @@
                     <span id="userName"></span>
                 </div>
                 <div>
+                    <button id="createUserBtn" class="btn hidden" style="margin-right: 10px;">👤 Create User</button>
                     <button id="logoutBtn" class="btn btn-secondary">Logout</button>
                 </div>
             </div>
@@ -445,6 +462,7 @@
         let currentUser = null;
         let tasks = [];
         let users = [];
+        let isAdminCreatingUser = false;
 
         // Default users
         const defaultUsers = [
@@ -511,8 +529,21 @@
             document.getElementById('registerForm').addEventListener('submit', handleRegister);
             
             // Screen navigation
-            document.getElementById('showRegisterBtn').addEventListener('click', showRegisterScreen);
+            document.getElementById('showRegisterBtn').addEventListener('click', function() {
+                isAdminCreatingUser = false;
+                showRegisterScreen();
+            });
             document.getElementById('showLoginBtn').addEventListener('click', showLoginScreen);
+            
+            // Admin user creation
+            document.getElementById('showAdminRegisterBtn').addEventListener('click', function() {
+                isAdminCreatingUser = true;
+                showRegisterScreen();
+            });
+            document.getElementById('createUserBtn').addEventListener('click', function() {
+                isAdminCreatingUser = true;
+                showRegisterScreen();
+            });
             
             // Logout
             document.getElementById('logoutBtn').addEventListener('click', logout);
@@ -546,6 +577,12 @@
             if (user) {
                 currentUser = user;
                 console.log('Login successful for:', user.name);
+                
+                // Show admin options in login screen if admin
+                if (user.role === 'admin') {
+                    document.getElementById('adminCreateUser').classList.remove('hidden');
+                }
+                
                 showMainApp();
             } else {
                 console.log('Login failed for:', username);
@@ -560,8 +597,9 @@
             const username = document.getElementById('regUsername').value.trim().toLowerCase();
             const password = document.getElementById('regPassword').value;
             const confirmPassword = document.getElementById('regConfirmPassword').value;
+            const role = isAdminCreatingUser ? document.getElementById('regRole').value : 'user';
 
-            console.log('Registration attempt for:', username);
+            console.log('Registration attempt for:', username, 'Role:', role, 'Admin creating:', isAdminCreatingUser);
 
             // Validation
             if (!fullName || !username || !password) {
@@ -588,22 +626,32 @@
             const newUser = {
                 username: username,
                 password: password,
-                role: 'user',
+                role: role,
                 name: fullName
             };
 
             users.push(newUser);
             localStorage.setItem('kanban_users', JSON.stringify(users));
 
-            console.log('User registered successfully:', username);
-            showMessage('Account created successfully! Redirecting to login...', 'regStatusMessage');
+            console.log('User registered successfully:', username, 'with role:', role);
             
-            setTimeout(() => {
-                document.getElementById('registerForm').reset();
-                showLoginScreen();
-                document.getElementById('username').value = username;
-                showMessage('Account created! You can now log in with your new credentials.', 'statusMessage');
-            }, 2000);
+            if (isAdminCreatingUser) {
+                showMessage(`User created successfully with ${role} role! Returning to main app...`, 'regStatusMessage');
+                setTimeout(() => {
+                    document.getElementById('registerForm').reset();
+                    showMainApp();
+                    // Refresh user list in assignee dropdown
+                    populateAssigneeSelect();
+                }, 2000);
+            } else {
+                showMessage('Account created successfully! Redirecting to login...', 'regStatusMessage');
+                setTimeout(() => {
+                    document.getElementById('registerForm').reset();
+                    showLoginScreen();
+                    document.getElementById('username').value = username;
+                    showMessage('Account created! You can now log in with your new credentials.', 'statusMessage');
+                }, 2000);
+            }
         }
 
         function showLoginScreen() {
@@ -616,7 +664,18 @@
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('registerScreen').classList.remove('hidden');
             document.getElementById('mainApp').classList.add('hidden');
-            showMessage('Fill out the form below to create your account.', 'regStatusMessage');
+            
+            // Show/hide role selection based on whether admin is creating user
+            const roleSelection = document.getElementById('roleSelection');
+            if (isAdminCreatingUser) {
+                roleSelection.classList.remove('hidden');
+                document.querySelector('#registerScreen h2').textContent = '👤 Create New User (Admin)';
+                showMessage('Creating user as admin - you can select their role below.', 'regStatusMessage');
+            } else {
+                roleSelection.classList.add('hidden');
+                document.querySelector('#registerScreen h2').textContent = '👤 Create Account';
+                showMessage('Fill out the form below to create your account.', 'regStatusMessage');
+            }
         }
 
         function showMainApp() {
@@ -630,14 +689,21 @@
             roleElement.textContent = currentUser.role;
             roleElement.className = `role-badge role-${currentUser.role}`;
             
+            // Show create user button for admins
+            if (currentUser.role === 'admin') {
+                document.getElementById('createUserBtn').classList.remove('hidden');
+            }
+            
             populateAssigneeSelect();
             loadKanbanBoard();
         }
 
         function logout() {
             currentUser = null;
+            isAdminCreatingUser = false;
             showLoginScreen();
             document.getElementById('loginForm').reset();
+            document.getElementById('adminCreateUser').classList.add('hidden');
             console.log('User logged out');
         }
 
