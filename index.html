@@ -665,14 +665,186 @@
             document.getElementById('manageUnitsBtn').addEventListener('click', showBusinessUnitsScreen);
             document.getElementById('backToMainBtn').addEventListener('click', showMainApp);
             document.getElementById('addUnitForm').addEventListener('submit', handleAddBusinessUnit);
+        function showLoginScreen() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('businessUnitsScreen').classList.add('hidden');
+        }
+
+        function showRegisterScreen() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('businessUnitsScreen').classList.add('hidden');
             
-            // Logout
-            document.getElementById('logoutBtn').addEventListener('click', logout);
+            // Populate business units dropdown
+            populateBusinessUnitsDropdown();
             
-            // Task form
-            document.getElementById('taskForm').addEventListener('submit', handleAddTask);
+            // Update help text based on whether admin is creating user
+            const roleHelp = document.getElementById('roleHelp');
             
-            console.log('Event listeners set up');
+            if (isAdminCreatingUser) {
+                document.querySelector('#registerScreen h2').textContent = '👤 Create New User (Admin)';
+                roleHelp.textContent = 'As admin, you can assign any role to this user';
+                showMessage('Creating user as admin - you have full control over role and business unit.', 'regStatusMessage');
+            } else {
+                document.querySelector('#registerScreen h2').textContent = '👤 Create Account';
+                roleHelp.textContent = 'Select your role in the organization (Admin role requires existing admin approval)';
+                showMessage('Fill out the form below to create your account. Choose your role and department.', 'regStatusMessage');
+            }
+        }
+
+        function showMainApp() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('businessUnitsScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            
+            // Update user info
+            document.getElementById('userName').textContent = currentUser.name;
+            
+            const roleElement = document.getElementById('userRole');
+            roleElement.textContent = currentUser.role.replace('-', ' ');
+            roleElement.className = `role-badge role-${currentUser.role}`;
+            
+            const businessUnitElement = document.getElementById('businessUnit');
+            const unit = businessUnits.find(u => u.id === currentUser.businessUnit);
+            businessUnitElement.textContent = unit ? unit.name : currentUser.businessUnit;
+            businessUnitElement.className = `business-unit-badge unit-${currentUser.businessUnit}`;
+            
+            // Show admin buttons
+            if (currentUser.role === 'admin') {
+                document.getElementById('createUserBtn').classList.remove('hidden');
+                document.getElementById('manageUnitsBtn').classList.remove('hidden');
+            }
+            
+            populateAssigneeSelect();
+            loadKanbanBoard();
+        }
+
+        function showBusinessUnitsScreen() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('businessUnitsScreen').classList.remove('hidden');
+            
+            loadBusinessUnitsList();
+        }
+
+        function populateBusinessUnitsDropdown() {
+            const select = document.getElementById('regBusinessUnit');
+            select.innerHTML = '';
+            
+            businessUnits.forEach(unit => {
+                const option = document.createElement('option');
+                option.value = unit.id;
+                option.textContent = unit.name;
+                select.appendChild(option);
+            });
+        }
+
+        function handleAddBusinessUnit(e) {
+            e.preventDefault();
+            
+            const unitId = document.getElementById('unitId').value.trim().toLowerCase();
+            const unitName = document.getElementById('unitName').value.trim();
+            const unitDescription = document.getElementById('unitDescription').value.trim();
+            
+            if (!unitId || !unitName) {
+                showMessage('Please fill in Unit ID and Name!', 'unitsStatusMessage');
+                return;
+            }
+            
+            if (businessUnits.find(u => u.id === unitId)) {
+                showMessage('Unit ID already exists! Please choose a different one.', 'unitsStatusMessage');
+                return;
+            }
+            
+            if (!/^[a-z0-9]+$/.test(unitId)) {
+                showMessage('Unit ID must be lowercase letters and numbers only (no spaces or special characters).', 'unitsStatusMessage');
+                return;
+            }
+            
+            const newUnit = {
+                id: unitId,
+                name: unitName,
+                description: unitDescription || 'No description provided'
+            };
+            
+            businessUnits.push(newUnit);
+            localStorage.setItem('kanban_business_units', JSON.stringify(businessUnits));
+            
+            showMessage('Business unit added successfully!', 'unitsStatusMessage');
+            document.getElementById('addUnitForm').reset();
+            loadBusinessUnitsList();
+        }
+
+        function loadBusinessUnitsList() {
+            const container = document.getElementById('businessUnitsList');
+            container.innerHTML = '';
+            
+            businessUnits.forEach(unit => {
+                const unitDiv = document.createElement('div');
+                unitDiv.style.cssText = 'background: #f8f9fa; margin-bottom: 10px; padding: 15px; border-radius: 8px; border-left: 4px solid #667eea;';
+                
+                const userCount = users.filter(u => u.businessUnit === unit.id).length;
+                const taskCount = tasks.filter(t => {
+                    const creator = users.find(u => u.username === t.createdBy);
+                    const assignee = users.find(u => u.username === t.assignee);
+                    return (creator && creator.businessUnit === unit.id) || (assignee && assignee.businessUnit === unit.id);
+                }).length;
+                
+                unitDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin: 0; color: #333;">${unit.name}</h4>
+                            <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">${unit.description}</p>
+                            <small style="color: #888;">ID: ${unit.id} • ${userCount} users • ${taskCount} tasks</small>
+                        </div>
+                        <div>
+                            <button class="btn btn-small" onclick="editBusinessUnit('${unit.id}')" style="margin-right: 5px; background: #ffc107; color: #333;">Edit</button>
+                            ${unit.id !== 'corporate' ? `<button class="btn btn-danger btn-small" onclick="deleteBusinessUnit('${unit.id}')">Delete</button>` : ''}
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(unitDiv);
+            });
+        }
+
+        function editBusinessUnit(unitId) {
+            const unit = businessUnits.find(u => u.id === unitId);
+            if (unit) {
+                const newName = prompt('Edit unit name:', unit.name);
+                if (newName && newName.trim()) {
+                    const newDescription = prompt('Edit description:', unit.description);
+                    
+                    unit.name = newName.trim();
+                    unit.description = newDescription ? newDescription.trim() : unit.description;
+                    
+                    localStorage.setItem('kanban_business_units', JSON.stringify(businessUnits));
+                    loadBusinessUnitsList();
+                    showMessage('Business unit updated successfully!', 'unitsStatusMessage');
+                }
+            }
+        }
+
+        function deleteBusinessUnit(unitId) {
+            const unit = businessUnits.find(u => u.id === unitId);
+            const userCount = users.filter(u => u.businessUnit === unitId).length;
+            
+            if (userCount > 0) {
+                alert(`Cannot delete ${unit.name} - it has ${userCount} users assigned to it. Please reassign users first.`);
+                return;
+            }
+            
+            if (confirm(`Are you sure you want to delete the "${unit.name}" business unit? This action cannot be undone.`)) {
+                businessUnits = businessUnits.filter(u => u.id !== unitId);
+                localStorage.setItem('kanban_business_units', JSON.stringify(businessUnits));
+                loadBusinessUnitsList();
+                showMessage('Business unit deleted successfully!', 'unitsStatusMessage');
+            }
         }
 
         function showMessage(message, elementId) {
@@ -815,39 +987,14 @@
             document.getElementById('mainApp').classList.add('hidden');
         }
 
-        function showRegisterScreen() {
-            document.getElementById('loginScreen').classList.add('hidden');
-            document.getElementById('registerScreen').classList.remove('hidden');
-            document.getElementById('mainApp').classList.add('hidden');
-            document.getElementById('businessUnitsScreen').classList.add('hidden');
             
-            // Populate business units dropdown
-            populateBusinessUnitsDropdown();
+            // Logout
+            document.getElementById('logoutBtn').addEventListener('click', logout);
             
-            // Update help text based on whether admin is creating user
-            const roleHelp = document.getElementById('roleHelp');
+            // Task form
+            document.getElementById('taskForm').addEventListener('submit', handleAddTask);
             
-            if (isAdminCreatingUser) {
-                document.querySelector('#registerScreen h2').textContent = '👤 Create New User (Admin)';
-                roleHelp.textContent = 'As admin, you can assign any role to this user';
-                showMessage('Creating user as admin - you have full control over role and business unit.', 'regStatusMessage');
-            } else {
-                document.querySelector('#registerScreen h2').textContent = '👤 Create Account';
-                roleHelp.textContent = 'Select your role in the organization (Admin role requires existing admin approval)';
-                showMessage('Fill out the form below to create your account. Choose your role and department.', 'regStatusMessage');
-            }
-        }
-
-        function populateBusinessUnitsDropdown() {
-            const select = document.getElementById('regBusinessUnit');
-            select.innerHTML = '';
-            
-            businessUnits.forEach(unit => {
-                const option = document.createElement('option');
-                option.value = unit.id;
-                option.textContent = unit.name;
-                select.appendChild(option);
-            });
+            console.log('Event listeners set up');
         }
 
         function showMainApp() {
