@@ -501,18 +501,18 @@
             
             <div class="demo-users">
                 <h3>🎯 Demo Users - Click to Login</h3>
-                <button class="demo-user" onclick="doQuickLogin('admin', 'admin123')">
+                <div class="demo-user" onclick="doQuickLogin('admin', 'admin123')">
                     <strong>admin/admin123</strong> - Full system access
-                </button>
-                <button class="demo-user" onclick="doQuickLogin('manager', 'manager123')">
+                </div>
+                <div class="demo-user" onclick="doQuickLogin('manager', 'manager123')">
                     <strong>manager/manager123</strong> - Team management access
-                </button>
-                <button class="demo-user" onclick="doQuickLogin('john', 'user123')">
+                </div>
+                <div class="demo-user" onclick="doQuickLogin('john', 'user123')">
                     <strong>john/user123</strong> - Regular user access
-                </button>
-                <button class="demo-user" onclick="doQuickLogin('sarah', 'user123')">
+                </div>
+                <div class="demo-user" onclick="doQuickLogin('sarah', 'user123')">
                     <strong>sarah/user123</strong> - Regular user access
-                </button>
+                </div>
             </div>
 
             <div class="debug-info" id="debugInfo">
@@ -696,13 +696,17 @@
     </div>
 
     <script>
-        // Global variables - define everything at the top
+        // ====================================
+        // GLOBAL VARIABLES
+        // ====================================
         let currentUser = null;
         let tasks = [];
         let users = [];
         let draggedTask = null;
 
-        // Debug function
+        // ====================================
+        // UTILITY FUNCTIONS
+        // ====================================
         function debug(message) {
             console.log('DEBUG:', message);
             const debugElement = document.getElementById('debugInfo');
@@ -711,7 +715,17 @@
             }
         }
 
-        // Quick login function - defined globally from the start
+        function saveTasks() {
+            localStorage.setItem('kanban_tasks', JSON.stringify(tasks));
+        }
+
+        function saveUsers() {
+            localStorage.setItem('kanban_users', JSON.stringify(users));
+        }
+
+        // ====================================
+        // DEMO LOGIN FUNCTION - GLOBAL
+        // ====================================
         function doQuickLogin(username, password) {
             debug(`Quick login attempt: ${username}`);
             document.getElementById('username').value = username;
@@ -719,7 +733,9 @@
             attemptLogin(username, password);
         }
 
-        // Load default users
+        // ====================================
+        // INITIALIZATION
+        // ====================================
         function loadUsers() {
             const defaultUsers = [
                 { username: 'admin', password: 'admin123', role: 'admin', name: 'Admin User' },
@@ -740,18 +756,19 @@
                             users.push(defaultUser);
                         }
                     });
+                    saveUsers();
                 } else {
                     users = [...defaultUsers];
-                    localStorage.setItem('kanban_users', JSON.stringify(users));
+                    saveUsers();
                     debug('Created default users');
                 }
             } catch (error) {
                 debug('Error loading users, using defaults: ' + error.message);
                 users = [...defaultUsers];
+                saveUsers();
             }
         }
 
-        // Load tasks
         function loadTasks() {
             try {
                 const storedTasks = localStorage.getItem('kanban_tasks');
@@ -768,7 +785,17 @@
             }
         }
 
-        // Login function
+        function initializeApp() {
+            debug('Initializing app...');
+            loadUsers();
+            loadTasks();
+            setupEventListeners();
+            debug('App initialized successfully!');
+        }
+
+        // ====================================
+        // AUTHENTICATION
+        // ====================================
         function attemptLogin(username, password) {
             debug(`Attempting login for: ${username}`);
             const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
@@ -783,7 +810,6 @@
             }
         }
 
-        // Registration function
         function doRegister() {
             const fullName = document.getElementById('regFullName').value.trim();
             const username = document.getElementById('regUsername').value.trim().toLowerCase();
@@ -820,7 +846,7 @@
             };
 
             users.push(newUser);
-            localStorage.setItem('kanban_users', JSON.stringify(users));
+            saveUsers();
 
             debug(`User registered successfully: ${username}`);
             alert('Account created successfully! You can now log in.');
@@ -832,7 +858,16 @@
             document.getElementById('username').value = username;
         }
 
-        // Screen management
+        function logout() {
+            currentUser = null;
+            showLoginScreen();
+            document.getElementById('loginForm').reset();
+            debug('User logged out');
+        }
+
+        // ====================================
+        // SCREEN MANAGEMENT
+        // ====================================
         function showLoginScreen() {
             document.getElementById('loginScreen').classList.remove('hidden');
             document.getElementById('registerScreen').classList.add('hidden');
@@ -868,6 +903,9 @@
             debug('Main app loaded successfully');
         }
 
+        // ====================================
+        // TASK MANAGEMENT
+        // ====================================
         function populateAssigneeSelect() {
             const select = document.getElementById('taskAssignee');
             select.innerHTML = '<option value="">Select User</option>';
@@ -880,7 +918,6 @@
             });
         }
 
-        // Task management
         function addTask() {
             const task = {
                 id: Date.now(),
@@ -901,39 +938,19 @@
             debug('Task added successfully');
         }
 
-        function saveTasks() {
-            localStorage.setItem('kanban_tasks', JSON.stringify(tasks));
+        function deleteTask(id) {
+            if (confirm('Are you sure you want to delete this task?')) {
+                tasks = tasks.filter(t => t.id !== id);
+                saveTasks();
+                loadKanbanBoard();
+                debug('Task deleted');
+            }
         }
 
-        function loadKanbanBoard() {
-            const columns = ['todo', 'inprogress', 'review', 'done'];
-            
-            columns.forEach(status => {
-                const column = document.getElementById(`${status}Column`);
-                column.innerHTML = '';
-                
-                const userTasks = tasks.filter(task => {
-                    const hasAccess = currentUser.role === 'admin' || 
-                                    currentUser.role === 'manager' || 
-                                    task.assignee === currentUser.username || 
-                                    task.createdBy === currentUser.username;
-                    return task.status === status && hasAccess;
-                });
-                
-                if (userTasks.length === 0) {
-                    const emptyMessage = getEmptyMessage(status);
-                    column.innerHTML = `<div class="empty-column">${emptyMessage}</div>`;
-                } else {
-                    userTasks.forEach(task => {
-                        const taskElement = createTaskCard(task);
-                        column.appendChild(taskElement);
-                    });
-                }
-                
-                document.getElementById(`${status}Count`).textContent = userTasks.length;
-            });
-            
-            updateDashboard();
-        }
-
-        function getEmpty
+        function moveTask(taskId, newStatus) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                task.status = newStatus;
+                saveTasks();
+                loadKanbanBoard();
+                debug(`Task moved to ${newStatus
