@@ -121,8 +121,23 @@
             text-transform: uppercase;
         }
         .role-admin { background: #dc3545; color: white; }
-        .role-manager { background: #ffc107; color: #333; }
+        .role-corporate-manager { background: #6f42c1; color: white; }
+        .role-business-manager { background: #ffc107; color: #333; }
         .role-user { background: #28a745; color: white; }
+        
+        .business-unit-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 5px;
+        }
+        .unit-corporate { background: #6c757d; color: white; }
+        .unit-leasing { background: #17a2b8; color: white; }
+        .unit-sales { background: #fd7e14; color: white; }
+        .unit-marketing { background: #e83e8c; color: white; }
+        .unit-finance { background: #20c997; color: white; }
         .task-form {
             background: white;
             padding: 30px;
@@ -306,14 +321,19 @@
                     <small>Role: Full system access</small>
                 </div>
                 <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
-                    <strong>Username:</strong> manager<br>
+                    <strong>Username:</strong> corp-mgr<br>
                     <strong>Password:</strong> manager123<br>
-                    <small>Role: Team management access</small>
+                    <small>Role: Corporate Manager (sees all units)</small>
+                </div>
+                <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                    <strong>Username:</strong> lease-mgr<br>
+                    <strong>Password:</strong> manager123<br>
+                    <small>Role: Leasing Manager (sees leasing unit only)</small>
                 </div>
                 <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
                     <strong>Username:</strong> john<br>
                     <strong>Password:</strong> user123<br>
-                    <small>Role: Regular user access</small>
+                    <small>Role: User in Leasing unit</small>
                 </div>
             </div>
         </div>
@@ -345,10 +365,22 @@
                     <label for="regRole">Role</label>
                     <select id="regRole">
                         <option value="user">User - Regular access</option>
-                        <option value="manager">Manager - Team management</option>
+                        <option value="business-manager">Business Unit Manager - Manages specific unit</option>
+                        <option value="corporate-manager">Corporate Manager - Manages all units</option>
                         <option value="admin">Admin - Full system access</option>
                     </select>
                     <small style="color: #666; font-size: 12px;">Only admins can assign roles</small>
+                </div>
+                <div class="form-group" id="businessUnitSelection" class="hidden">
+                    <label for="regBusinessUnit">Business Unit</label>
+                    <select id="regBusinessUnit">
+                        <option value="corporate">Corporate</option>
+                        <option value="leasing">Leasing</option>
+                        <option value="sales">Sales</option>
+                        <option value="marketing">Marketing</option>
+                        <option value="finance">Finance</option>
+                    </select>
+                    <small style="color: #666; font-size: 12px;">Select the business unit for this user</small>
                 </div>
                 <button type="submit" class="btn" style="width: 100%;">Create Account</button>
             </form>
@@ -368,6 +400,7 @@
                 <div class="user-info">
                     <h1>📋 Kanban Task Manager</h1>
                     <span id="userRole" class="role-badge"></span>
+                    <span id="businessUnit" class="business-unit-badge"></span>
                     <span id="userName"></span>
                 </div>
                 <div>
@@ -464,12 +497,14 @@
         let users = [];
         let isAdminCreatingUser = false;
 
-        // Default users
+        // Default users with business units
         const defaultUsers = [
-            { username: 'admin', password: 'admin123', role: 'admin', name: 'Admin User' },
-            { username: 'manager', password: 'manager123', role: 'manager', name: 'Manager User' },
-            { username: 'john', password: 'user123', role: 'user', name: 'John Doe' },
-            { username: 'sarah', password: 'user123', role: 'user', name: 'Sarah Smith' }
+            { username: 'admin', password: 'admin123', role: 'admin', name: 'Admin User', businessUnit: 'corporate' },
+            { username: 'corp-mgr', password: 'manager123', role: 'corporate-manager', name: 'Corporate Manager', businessUnit: 'corporate' },
+            { username: 'lease-mgr', password: 'manager123', role: 'business-manager', name: 'Leasing Manager', businessUnit: 'leasing' },
+            { username: 'sales-mgr', password: 'manager123', role: 'business-manager', name: 'Sales Manager', businessUnit: 'sales' },
+            { username: 'john', password: 'user123', role: 'user', name: 'John Doe', businessUnit: 'leasing' },
+            { username: 'sarah', password: 'user123', role: 'user', name: 'Sarah Smith', businessUnit: 'sales' }
         ];
 
         // Initialize on page load
@@ -575,8 +610,17 @@
             const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
             
             if (user) {
+                // Migrate old users to have business units
+                if (!user.businessUnit) {
+                    user.businessUnit = user.role === 'admin' ? 'corporate' : 'leasing';
+                    if (user.role === 'manager') {
+                        user.role = 'business-manager';
+                    }
+                    localStorage.setItem('kanban_users', JSON.stringify(users));
+                }
+                
                 currentUser = user;
-                console.log('Login successful for:', user.name);
+                console.log('Login successful for:', user.name, 'Role:', user.role, 'Unit:', user.businessUnit);
                 
                 // Show admin options in login screen if admin
                 if (user.role === 'admin') {
@@ -598,8 +642,9 @@
             const password = document.getElementById('regPassword').value;
             const confirmPassword = document.getElementById('regConfirmPassword').value;
             const role = isAdminCreatingUser ? document.getElementById('regRole').value : 'user';
+            const businessUnit = isAdminCreatingUser ? document.getElementById('regBusinessUnit').value : 'leasing';
 
-            console.log('Registration attempt for:', username, 'Role:', role, 'Admin creating:', isAdminCreatingUser);
+            console.log('Registration attempt for:', username, 'Role:', role, 'Unit:', businessUnit, 'Admin creating:', isAdminCreatingUser);
 
             // Validation
             if (!fullName || !username || !password) {
@@ -627,16 +672,17 @@
                 username: username,
                 password: password,
                 role: role,
-                name: fullName
+                name: fullName,
+                businessUnit: businessUnit
             };
 
             users.push(newUser);
             localStorage.setItem('kanban_users', JSON.stringify(users));
 
-            console.log('User registered successfully:', username, 'with role:', role);
+            console.log('User registered successfully:', username, 'with role:', role, 'in unit:', businessUnit);
             
             if (isAdminCreatingUser) {
-                showMessage(`User created successfully with ${role} role! Returning to main app...`, 'regStatusMessage');
+                showMessage(`User created successfully with ${role} role in ${businessUnit} unit! Returning to main app...`, 'regStatusMessage');
                 setTimeout(() => {
                     document.getElementById('registerForm').reset();
                     showMainApp();
@@ -665,14 +711,18 @@
             document.getElementById('registerScreen').classList.remove('hidden');
             document.getElementById('mainApp').classList.add('hidden');
             
-            // Show/hide role selection based on whether admin is creating user
+            // Show/hide role and business unit selection based on whether admin is creating user
             const roleSelection = document.getElementById('roleSelection');
+            const businessUnitSelection = document.getElementById('businessUnitSelection');
+            
             if (isAdminCreatingUser) {
                 roleSelection.classList.remove('hidden');
+                businessUnitSelection.classList.remove('hidden');
                 document.querySelector('#registerScreen h2').textContent = '👤 Create New User (Admin)';
-                showMessage('Creating user as admin - you can select their role below.', 'regStatusMessage');
+                showMessage('Creating user as admin - you can select their role and business unit below.', 'regStatusMessage');
             } else {
                 roleSelection.classList.add('hidden');
+                businessUnitSelection.classList.add('hidden');
                 document.querySelector('#registerScreen h2').textContent = '👤 Create Account';
                 showMessage('Fill out the form below to create your account.', 'regStatusMessage');
             }
@@ -763,10 +813,35 @@
             const select = document.getElementById('taskAssignee');
             select.innerHTML = '<option value="">Select User</option>';
             
-            users.forEach(user => {
+            // Filter users based on current user's role and business unit
+            let availableUsers = [];
+            
+            if (currentUser.role === 'admin') {
+                // Admin can see all users
+                availableUsers = users;
+            } else if (currentUser.role === 'corporate-manager') {
+                // Corporate manager can see all users
+                availableUsers = users;
+            } else if (currentUser.role === 'business-manager') {
+                // Business manager can only see users in their business unit
+                availableUsers = users.filter(user => 
+                    user.businessUnit === currentUser.businessUnit ||
+                    user.role === 'admin' ||
+                    user.role === 'corporate-manager'
+                );
+            } else {
+                // Regular users can only see users in their business unit + managers + admins
+                availableUsers = users.filter(user => 
+                    user.businessUnit === currentUser.businessUnit ||
+                    user.role === 'admin' ||
+                    user.role === 'corporate-manager'
+                );
+            }
+            
+            availableUsers.forEach(user => {
                 const option = document.createElement('option');
                 option.value = user.username;
-                option.textContent = user.name;
+                option.textContent = `${user.name} (${user.businessUnit})`;
                 select.appendChild(option);
             });
         }
@@ -800,11 +875,31 @@
                 const column = document.getElementById(`${status}Column`);
                 column.innerHTML = '';
                 
+                // Filter tasks based on user role and business unit
                 const userTasks = tasks.filter(task => {
-                    const hasAccess = currentUser.role === 'admin' || 
-                                    currentUser.role === 'manager' || 
-                                    task.assignee === currentUser.username || 
-                                    task.createdBy === currentUser.username;
+                    let hasAccess = false;
+                    
+                    if (currentUser.role === 'admin') {
+                        // Admin can see all tasks
+                        hasAccess = true;
+                    } else if (currentUser.role === 'corporate-manager') {
+                        // Corporate manager can see all tasks
+                        hasAccess = true;
+                    } else if (currentUser.role === 'business-manager') {
+                        // Business manager can see tasks in their business unit
+                        const taskCreator = users.find(u => u.username === task.createdBy);
+                        const taskAssignee = users.find(u => u.username === task.assignee);
+                        
+                        hasAccess = (taskCreator && taskCreator.businessUnit === currentUser.businessUnit) ||
+                                   (taskAssignee && taskAssignee.businessUnit === currentUser.businessUnit) ||
+                                   task.createdBy === currentUser.username ||
+                                   task.assignee === currentUser.username;
+                    } else {
+                        // Regular users can only see their own tasks or tasks assigned to them
+                        hasAccess = task.assignee === currentUser.username || 
+                                   task.createdBy === currentUser.username;
+                    }
+                    
                     return task.status === status && hasAccess;
                 });
                 
@@ -890,11 +985,23 @@
         function moveTaskToStatus(taskId, newStatus) {
             const task = tasks.find(t => t.id === taskId);
             if (task) {
-                // Check permissions
-                const canMove = currentUser.role === 'admin' || 
-                               currentUser.role === 'manager' || 
-                               task.assignee === currentUser.username || 
-                               task.createdBy === currentUser.username;
+                // Check permissions based on business units
+                let canMove = false;
+                
+                if (currentUser.role === 'admin' || currentUser.role === 'corporate-manager') {
+                    canMove = true;
+                } else if (currentUser.role === 'business-manager') {
+                    const taskCreator = users.find(u => u.username === task.createdBy);
+                    const taskAssignee = users.find(u => u.username === task.assignee);
+                    
+                    canMove = (taskCreator && taskCreator.businessUnit === currentUser.businessUnit) ||
+                             (taskAssignee && taskAssignee.businessUnit === currentUser.businessUnit) ||
+                             task.createdBy === currentUser.username ||
+                             task.assignee === currentUser.username;
+                } else {
+                    canMove = task.assignee === currentUser.username || 
+                             task.createdBy === currentUser.username;
+                }
                 
                 if (canMove) {
                     task.status = newStatus;
