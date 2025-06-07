@@ -562,37 +562,27 @@
             { id: 'greenatom', name: 'Green Atom', description: 'Sustainable and green initiatives' }
         ];
 
-        // Initialize on page load with delay to ensure DOM is ready
+        // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded, waiting for elements...');
-            // Add a small delay to ensure all elements are rendered
+            console.log('DOM loaded, initializing...');
+            // Small delay to ensure all elements are rendered
             setTimeout(function() {
-                console.log('Starting app initialization...');
                 initApp();
             }, 100);
         });
 
         function initApp() {
             try {
-                debug('Initializing app...');
+                console.log('Starting app initialization...');
                 loadData();
+                console.log('Data loaded, setting up event listeners...');
                 setupEventListeners();
+                console.log('Event listeners setup complete');
                 showMessage('App ready! Try registering a new account.', 'statusMessage');
-                debug('App initialized successfully!');
             } catch (error) {
                 console.error('Error during initialization:', error);
-                // Try to show error in status message if possible
-                const statusMsg = document.getElementById('statusMessage');
-                if (statusMsg) {
-                    statusMsg.textContent = 'Error loading app. Please refresh the page.';
-                    statusMsg.classList.remove('hidden');
-                }
+                alert('There was an error initializing the app. Please refresh the page.');
             }
-        }
-
-        function debug(message) {
-            console.log('DEBUG:', message);
-            // Don't try to access debug element if it might not exist
         }
 
         function loadData() {
@@ -745,12 +735,24 @@
         }
 
         function showBusinessUnitsScreen() {
-            document.getElementById('loginScreen').classList.add('hidden');
-            document.getElementById('registerScreen').classList.add('hidden');
-            document.getElementById('mainApp').classList.add('hidden');
-            document.getElementById('businessUnitsScreen').classList.remove('hidden');
-            
-            loadBusinessUnitsList();
+            try {
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('registerScreen').classList.add('hidden');
+                document.getElementById('mainApp').classList.add('hidden');
+                document.getElementById('businessUnitsScreen').classList.remove('hidden');
+                
+                loadBusinessUnitsList();
+                
+                // Set up the add unit form listener if it doesn't exist
+                const addUnitForm = document.getElementById('addUnitForm');
+                if (addUnitForm && !addUnitForm.hasAttribute('data-listener-added')) {
+                    addUnitForm.addEventListener('submit', handleAddBusinessUnit);
+                    addUnitForm.setAttribute('data-listener-added', 'true');
+                    console.log('Add unit form listener added dynamically');
+                }
+            } catch (error) {
+                console.error('Error showing business units screen:', error);
+            }
         }
 
         function populateBusinessUnitsDropdown() {
@@ -869,22 +871,13 @@
         }
 
         function showMessage(message, elementId) {
-            try {
-                const element = document.getElementById(elementId);
-                if (element) {
-                    element.textContent = message;
-                    element.classList.remove('hidden');
-                    setTimeout(() => {
-                        if (element) {
-                            element.classList.add('hidden');
-                        }
-                    }, 5000);
-                } else {
-                    console.log('Message:', message, '(Element not found:', elementId, ')');
-                }
-            } catch (error) {
-                console.error('Error showing message:', error);
-                console.log('Message was:', message);
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = message;
+                element.classList.remove('hidden');
+                setTimeout(() => {
+                    element.classList.add('hidden');
+                }, 5000);
             }
         }
 
