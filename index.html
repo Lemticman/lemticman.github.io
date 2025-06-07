@@ -498,7 +498,39 @@
         </div>
     </div>
 
-    <!-- Main App -->
+    <!-- Manage Users Screen -->
+    <div id="manageUsersScreen" class="login-container hidden">
+        <div class="login-box" style="max-width: 800px;">
+            <h2>👥 User Management</h2>
+            <div id="usersStatusMessage" class="status-message hidden"></div>
+            
+            <!-- Users List -->
+            <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h3>📋 All Users</h3>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                    <thead>
+                        <tr style="background: #f8f9fa;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Name</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Username</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Role</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Business Unit</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Tasks</th>
+                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersList">
+                        <!-- Users will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="text-align: center;">
+                <button id="backToMainFromUsersBtn" class="btn btn-secondary" style="width: 100%;">
+                    ← Back to Main App
+                </button>
+            </div>
+        </div>
+    </div>
     <div id="mainApp" class="hidden">
         <div class="container">
             <div class="app-header">
@@ -511,6 +543,7 @@
                 <div>
                     <button id="manageUnitsBtn" class="btn hidden" style="margin-right: 10px; background: #6f42c1;">🏢 Manage Units</button>
                     <button id="createUserBtn" class="btn hidden" style="margin-right: 10px;">👤 Create User</button>
+                    <button id="manageUsersBtn" class="btn hidden" style="margin-right: 10px; background: #dc3545;">👥 Manage Users</button>
                     <button id="logoutBtn" class="btn btn-secondary">Logout</button>
                 </div>
             </div>
@@ -723,11 +756,19 @@
                 showCreateUserScreen();
             };
 
+            document.getElementById('manageUsersBtn').onclick = function() {
+                showManageUsersScreen();
+            };
+
             document.getElementById('backToMainBtn').onclick = function() {
                 showMainApp();
             };
 
             document.getElementById('backToMainFromCreateBtn').onclick = function() {
+                showMainApp();
+            };
+
+            document.getElementById('backToMainFromUsersBtn').onclick = function() {
                 showMainApp();
             };
             
@@ -828,6 +869,7 @@
             document.getElementById('mainApp').classList.add('hidden');
             document.getElementById('businessUnitsScreen').classList.add('hidden');
             document.getElementById('createUserScreen').classList.add('hidden');
+            document.getElementById('manageUsersScreen').classList.add('hidden');
         }
 
         function showRegisterScreen() {
@@ -836,6 +878,7 @@
             document.getElementById('mainApp').classList.add('hidden');
             document.getElementById('businessUnitsScreen').classList.add('hidden');
             document.getElementById('createUserScreen').classList.add('hidden');
+            document.getElementById('manageUsersScreen').classList.add('hidden');
             populateBusinessUnitsInForm('regBusinessUnit');
         }
 
@@ -844,6 +887,7 @@
             document.getElementById('registerScreen').classList.add('hidden');
             document.getElementById('businessUnitsScreen').classList.add('hidden');
             document.getElementById('createUserScreen').classList.add('hidden');
+            document.getElementById('manageUsersScreen').classList.add('hidden');
             document.getElementById('mainApp').classList.remove('hidden');
             
             // Update user info
@@ -859,6 +903,7 @@
             if (currentUser.role === 'admin') {
                 document.getElementById('manageUnitsBtn').classList.remove('hidden');
                 document.getElementById('createUserBtn').classList.remove('hidden');
+                document.getElementById('manageUsersBtn').classList.remove('hidden');
             }
             
             populateAssigneeSelect();
@@ -871,6 +916,7 @@
             document.getElementById('registerScreen').classList.add('hidden');
             document.getElementById('mainApp').classList.add('hidden');
             document.getElementById('createUserScreen').classList.add('hidden');
+            document.getElementById('manageUsersScreen').classList.add('hidden');
             document.getElementById('businessUnitsScreen').classList.remove('hidden');
             loadBusinessUnitsList();
         }
@@ -880,8 +926,19 @@
             document.getElementById('registerScreen').classList.add('hidden');
             document.getElementById('mainApp').classList.add('hidden');
             document.getElementById('businessUnitsScreen').classList.add('hidden');
+            document.getElementById('manageUsersScreen').classList.add('hidden');
             document.getElementById('createUserScreen').classList.remove('hidden');
             populateBusinessUnitsInForm('createBusinessUnit');
+        }
+
+        function showManageUsersScreen() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('businessUnitsScreen').classList.add('hidden');
+            document.getElementById('createUserScreen').classList.add('hidden');
+            document.getElementById('manageUsersScreen').classList.remove('hidden');
+            loadUsersList();
         }
 
         function logout() {
@@ -1294,6 +1351,126 @@
                 localStorage.setItem('simple_kanban_tasks', JSON.stringify(tasks));
                 loadKanbanBoard();
                 console.log('Task deleted');
+            }
+        }
+
+        function loadUsersList() {
+            const container = document.getElementById('usersList');
+            container.innerHTML = '';
+            
+            users.forEach(user => {
+                const userTasks = tasks.filter(t => t.assignee === user.username || t.createdBy === user.username);
+                const unit = businessUnits.find(u => u.id === user.businessUnit);
+                
+                const row = document.createElement('tr');
+                row.style.borderBottom = '1px solid #dee2e6';
+                
+                const isCurrentUser = user.username === currentUser.username;
+                const canDelete = !isCurrentUser; // Can't delete yourself
+                
+                row.innerHTML = `
+                    <td style="padding: 12px;">${user.name}${isCurrentUser ? ' (You)' : ''}</td>
+                    <td style="padding: 12px;">${user.username}</td>
+                    <td style="padding: 12px;">
+                        <span class="role-badge role-${user.role}" style="font-size: 10px; padding: 2px 6px;">
+                            ${user.role.replace('-', ' ')}
+                        </span>
+                    </td>
+                    <td style="padding: 12px;">
+                        <span class="business-unit-badge unit-${user.businessUnit}" style="font-size: 10px; padding: 2px 6px;">
+                            ${unit ? unit.name : user.businessUnit}
+                        </span>
+                    </td>
+                    <td style="padding: 12px;">${userTasks.length} tasks</td>
+                    <td style="padding: 12px; text-align: center;">
+                        ${canDelete ? `
+                            <button class="btn btn-small" onclick="editUser('${user.username}')" style="margin-right: 5px; background: #ffc107; color: #333; padding: 4px 8px;">
+                                Edit
+                            </button>
+                            <button class="btn btn-danger btn-small" onclick="deleteUser('${user.username}')" style="padding: 4px 8px;">
+                                Delete
+                            </button>
+                        ` : `
+                            <button class="btn btn-small" onclick="editUser('${user.username}')" style="background: #ffc107; color: #333; padding: 4px 8px;">
+                                Edit
+                            </button>
+                            <span style="color: #999; font-size: 12px; margin-left: 5px;">Can't delete yourself</span>
+                        `}
+                    </td>
+                `;
+                
+                container.appendChild(row);
+            });
+        }
+
+        function editUser(username) {
+            const user = users.find(u => u.username === username);
+            if (!user) return;
+            
+            const newName = prompt('Edit full name:', user.name);
+            if (newName && newName.trim()) {
+                const newPassword = prompt('Edit password (leave blank to keep current):', '');
+                
+                user.name = newName.trim();
+                if (newPassword && newPassword.trim()) {
+                    user.password = newPassword.trim();
+                }
+                
+                localStorage.setItem('simple_kanban_users', JSON.stringify(users));
+                loadUsersList();
+                showMessage('User updated successfully!', 'usersStatusMessage');
+                
+                // If editing current user, update the header
+                if (user.username === currentUser.username) {
+                    currentUser = user;
+                    document.getElementById('userName').textContent = currentUser.name;
+                }
+            }
+        }
+
+        function deleteUser(username) {
+            const user = users.find(u => u.username === username);
+            if (!user) return;
+            
+            // Check if user has tasks
+            const userTasks = tasks.filter(t => t.assignee === username || t.createdBy === username);
+            
+            if (userTasks.length > 0) {
+                const proceed = confirm(
+                    `${user.name} has ${userTasks.length} tasks associated with them.\n\n` +
+                    'Deleting this user will:\n' +
+                    '• Remove them from task assignments\n' +
+                    '• Keep the tasks but mark assignee as "Unassigned"\n\n' +
+                    'Are you sure you want to proceed?'
+                );
+                
+                if (!proceed) return;
+                
+                // Reassign tasks
+                userTasks.forEach(task => {
+                    if (task.assignee === username) {
+                        task.assignee = ''; // Unassign
+                    }
+                    // Keep createdBy for audit trail, but note user was deleted
+                });
+                
+                localStorage.setItem('simple_kanban_tasks', JSON.stringify(tasks));
+            } else {
+                if (!confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)) {
+                    return;
+                }
+            }
+            
+            // Delete the user
+            users = users.filter(u => u.username !== username);
+            localStorage.setItem('simple_kanban_users', JSON.stringify(users));
+            
+            loadUsersList();
+            showMessage(`User ${user.name} deleted successfully!`, 'usersStatusMessage');
+            
+            // Refresh assignee select if on main app
+            if (!document.getElementById('mainApp').classList.contains('hidden')) {
+                populateAssigneeSelect();
             }
         }
     </script>
