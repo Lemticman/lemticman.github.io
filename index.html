@@ -1,118 +1,4 @@
-        function loadBusinessUnitsList() {
-            const container = document.getElementById('businessUnitsList');
-            container.innerHTML = '';
-            
-            businessUnits.forEach(unit => {
-                const unitDiv = document.createElement('div');
-                unitDiv.style.cssText = 'background: #f8f9fa; margin-bottom: 10px; padding: 15px; border-radius: 8px; border-left: 4px solid #667eea;';
-                
-                const userCount = users.filter(u => u.businessUnit === unit.id).length;
-                const taskCount = tasks.filter(t => {
-                    const creator = users.find(u => u.username === t.createdBy);
-                    const assignee = users.find(u => u.username === t.assignee);
-                    return (creator && creator.businessUnit === unit.id) || (assignee && assignee.businessUnit === unit.id);
-                }).length;
-                
-                unitDiv.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <h4 style="margin: 0; color: #333;">${unit.name}</h4>
-                            <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">${unit.description}</p>
-                            <small style="color: #888;">ID: ${unit.id} • ${userCount} users • ${taskCount} tasks</small>
-                        </div>
-                        <div>
-                            <button class="btn btn-small" onclick="editBusinessUnit('${unit.id}')" style="margin-right: 5px; background: #ffc107; color: #333;">Edit</button>
-                            ${unit.id !== 'corporate' ? `<button class="btn btn-danger btn-small" onclick="deleteBusinessUnit('${unit.id}')">Delete</button>` : ''}
-                        </div>
-                    </div>
-                `;
-                
-                container.appendChild(unitDiv);
-            });
-        }
-
-        function editBusinessUnit(unitId) {
-            const unit = businessUnits.find(u => u.id === unitId);
-            if (unit) {
-                const newName = prompt('Edit unit name:', unit.name);
-                if (newName && newName.trim()) {
-                    const newDescription = prompt('Edit description:', unit.description);
-                    
-                    unit.name = newName.trim();
-                    unit.description = newDescription ? newDescription.trim() : unit.description;
-                    
-                    localStorage.setItem('simple_kanban_units', JSON.stringify(businessUnits));
-                    loadBusinessUnitsList();
-                    showMessage('Business unit updated successfully!', 'unitsStatusMessage');
-                }
-            }
-        }
-
-        function deleteBusinessUnit(unitId) {
-            const unit = businessUnits.find(u => u.id === unitId);
-            const userCount = users.filter(u => u.businessUnit === unitId).length;
-            
-            if (userCount > 0) {
-                alert(`Cannot delete ${unit.name} - it has ${userCount} users assigned to it. Please reassign users first.`);
-                return;
-            }
-            
-            if (confirm(`Are you sure you want to delete the "${unit.name}" business unit? This action cannot be undone.`)) {
-                businessUnits = businessUnits.filter(u => u.id !== unitId);
-                localStorage.setItem('simple_kanban_units', JSON.stringify(businessUnits));
-                loadBusinessUnitsList();
-                showMessage('Business unit deleted successfully!', 'unitsStatusMessage');
-            }
-        }
-
-        function createUser() {
-            const fullName = document.getElementById('createFullName').value.trim();
-            const username = document.getElementById('createUsername').value.trim().toLowerCase();
-            const password = document.getElementById('createPassword').value;
-            const role = document.getElementById('createRole').value;
-            const businessUnit = document.getElementById('createBusinessUnit').value;
-
-            if (!fullName || !username || !password) {
-                showMessage('Please fill in all fields!', 'createUserStatusMessage');
-                return;
-            }
-
-            if (users.find(u => u.username === username)) {
-                showMessage('Username already exists!', 'createUserStatusMessage');
-                return;
-            }
-
-            const newUser = {
-                username: username,
-                password: password,
-                role: role,
-                name: fullName,
-                businessUnit: businessUnit
-            };
-
-            users.push(newUser);
-            localStorage.setItem('simple_kanban_users', JSON.stringify(users));
-
-            showMessage(`User created successfully with ${role} role in ${businessUnit} unit!`, 'createUserStatusMessage');
-            document.getElementById('createUserForm').reset();
-            
-            setTimeout(() => {
-                showMainApp();
-                populateAssigneeSelect(); // Refresh assignee dropdown
-            }, 2000);
-        }
-
-        function deleteTask(id) {
-            if (confirm('Are you sure you want to delete this task?')) {
-                tasks = tasks.filter(t => t.id !== id);
-                localStorage.setItem('simple_kanban_tasks', JSON.stringify(tasks));
-                loadKanbanBoard();
-                console.log('Task deleted');
-            }
-        }
-    </script>
-</body>
-</html><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -310,6 +196,11 @@
             min-height: 400px;
             position: relative;
         }
+        .column-body.drag-over {
+            background: #f0f8ff;
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+        }
         .task-card {
             background: #f8f9fa;
             border-radius: 10px;
@@ -322,6 +213,10 @@
         .task-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        .task-card.dragging {
+            opacity: 0.5;
+            transform: rotate(2deg);
         }
         .task-card.priority-high { border-left-color: #dc3545; }
         .task-card.priority-medium { border-left-color: #ffc107; }
@@ -423,94 +318,6 @@
                     <label for="username">Username</label>
                     <input type="text" id="username" required>
                 </div>
-
-    <!-- Business Units Management Screen -->
-    <div id="businessUnitsScreen" class="login-container hidden">
-        <div class="login-box" style="max-width: 600px;">
-            <h2>🏢 Business Units Management</h2>
-            <div id="unitsStatusMessage" class="status-message hidden"></div>
-            
-            <!-- Add New Business Unit -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                <h3>➕ Add New Business Unit</h3>
-                <form id="addUnitForm">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="unitId">Unit ID (lowercase, no spaces)</label>
-                            <input type="text" id="unitId" required placeholder="e.g., newunit">
-                        </div>
-                        <div class="form-group">
-                            <label for="unitName">Unit Name</label>
-                            <input type="text" id="unitName" required placeholder="e.g., New Unit">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="unitDescription">Description</label>
-                        <textarea id="unitDescription" rows="2" placeholder="Brief description of this business unit"></textarea>
-                    </div>
-                    <button type="submit" class="btn">Add Business Unit</button>
-                </form>
-            </div>
-            
-            <!-- Existing Business Units -->
-            <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                <h3>📋 Existing Business Units</h3>
-                <div id="businessUnitsList">
-                    <!-- Units will be populated here -->
-                </div>
-            </div>
-            
-            <div style="text-align: center;">
-                <button id="backToMainBtn" class="btn btn-secondary" style="width: 100%;">
-                    ← Back to Main App
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Create User Screen -->
-    <div id="createUserScreen" class="login-container hidden">
-        <div class="login-box">
-            <h2>👤 Create New User (Admin)</h2>
-            <div id="createUserStatusMessage" class="status-message hidden"></div>
-            <form id="createUserForm">
-                <div class="form-group">
-                    <label for="createFullName">Full Name</label>
-                    <input type="text" id="createFullName" required placeholder="Enter full name">
-                </div>
-                <div class="form-group">
-                    <label for="createUsername">Username</label>
-                    <input type="text" id="createUsername" required placeholder="Choose username">
-                </div>
-                <div class="form-group">
-                    <label for="createPassword">Password</label>
-                    <input type="password" id="createPassword" required placeholder="Create password">
-                </div>
-                <div class="form-group">
-                    <label for="createRole">User Role</label>
-                    <select id="createRole" required>
-                        <option value="user">User - Regular access</option>
-                        <option value="business-manager">Business Manager - Team management</option>
-                        <option value="corporate-manager">Corporate Manager - All units</option>
-                        <option value="admin">Admin - Full system access</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="createBusinessUnit">Business Unit</label>
-                    <select id="createBusinessUnit" required>
-                        <!-- Will be populated dynamically -->
-                    </select>
-                </div>
-                <button type="submit" class="btn" style="width: 100%;">Create User</button>
-            </form>
-            
-            <div style="text-align: center; margin-top: 20px;">
-                <button id="backToMainFromCreateBtn" class="btn btn-secondary" style="width: 100%;">
-                    ← Back to Main App
-                </button>
-            </div>
-        </div>
-    </div>
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" id="password" required>
@@ -598,6 +405,94 @@
             <div style="text-align: center; margin-top: 20px;">
                 <button id="showLoginBtn" class="btn btn-secondary" style="width: 100%;">
                     ← Back to Login
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Business Units Management Screen -->
+    <div id="businessUnitsScreen" class="login-container hidden">
+        <div class="login-box" style="max-width: 600px;">
+            <h2>🏢 Business Units Management</h2>
+            <div id="unitsStatusMessage" class="status-message hidden"></div>
+            
+            <!-- Add New Business Unit -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h3>➕ Add New Business Unit</h3>
+                <form id="addUnitForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="unitId">Unit ID (lowercase, no spaces)</label>
+                            <input type="text" id="unitId" required placeholder="e.g., newunit">
+                        </div>
+                        <div class="form-group">
+                            <label for="unitName">Unit Name</label>
+                            <input type="text" id="unitName" required placeholder="e.g., New Unit">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="unitDescription">Description</label>
+                        <textarea id="unitDescription" rows="2" placeholder="Brief description of this business unit"></textarea>
+                    </div>
+                    <button type="submit" class="btn">Add Business Unit</button>
+                </form>
+            </div>
+            
+            <!-- Existing Business Units -->
+            <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h3>📋 Existing Business Units</h3>
+                <div id="businessUnitsList">
+                    <!-- Units will be populated here -->
+                </div>
+            </div>
+            
+            <div style="text-align: center;">
+                <button id="backToMainBtn" class="btn btn-secondary" style="width: 100%;">
+                    ← Back to Main App
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create User Screen -->
+    <div id="createUserScreen" class="login-container hidden">
+        <div class="login-box">
+            <h2>👤 Create New User (Admin)</h2>
+            <div id="createUserStatusMessage" class="status-message hidden"></div>
+            <form id="createUserForm">
+                <div class="form-group">
+                    <label for="createFullName">Full Name</label>
+                    <input type="text" id="createFullName" required placeholder="Enter full name">
+                </div>
+                <div class="form-group">
+                    <label for="createUsername">Username</label>
+                    <input type="text" id="createUsername" required placeholder="Choose username">
+                </div>
+                <div class="form-group">
+                    <label for="createPassword">Password</label>
+                    <input type="password" id="createPassword" required placeholder="Create password">
+                </div>
+                <div class="form-group">
+                    <label for="createRole">User Role</label>
+                    <select id="createRole" required>
+                        <option value="user">User - Regular access</option>
+                        <option value="business-manager">Business Manager - Team management</option>
+                        <option value="corporate-manager">Corporate Manager - All units</option>
+                        <option value="admin">Admin - Full system access</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="createBusinessUnit">Business Unit</label>
+                    <select id="createBusinessUnit" required>
+                        <!-- Will be populated dynamically -->
+                    </select>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Create User</button>
+            </form>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button id="backToMainFromCreateBtn" class="btn btn-secondary" style="width: 100%;">
+                    ← Back to Main App
                 </button>
             </div>
         </div>
@@ -702,7 +597,7 @@
     </div>
 
     <script>
-        // Simple, working JavaScript
+        // Global variables
         let currentUser = null;
         let tasks = [];
         let users = [];
@@ -719,7 +614,7 @@
             { id: 'greenatom', name: 'Green Atom', description: 'Sustainable and green initiatives' }
         ];
 
-        // Default users with your business units
+        // Default users
         const defaultUsers = [
             { username: 'admin', password: 'admin123', role: 'admin', name: 'Admin User', businessUnit: 'corporate' },
             { username: 'corp-mgr', password: 'manager123', role: 'corporate-manager', name: 'Corporate Manager', businessUnit: 'corporate' },
@@ -882,7 +777,7 @@
                 showMainApp();
             } else {
                 console.log('Login failed');
-                showMessage('Invalid username or password. Try admin/admin123 or john/user123', 'statusMessage');
+                showMessage('Invalid username or password. Try the demo accounts above.', 'statusMessage');
             }
         }
 
@@ -1223,17 +1118,6 @@
             }
         }
 
-        .column-body.drag-over {
-            background: #f0f8ff;
-            border: 2px dashed #667eea;
-            border-radius: 10px;
-        }
-
-        .task-card.dragging {
-            opacity: 0.5;
-            transform: rotate(2deg);
-        }
-
         function getMoveButtons(currentStatus, taskId) {
             const statusFlow = {
                 'todo': { next: 'inprogress', nextLabel: '▶️ Start', prev: null },
@@ -1266,6 +1150,144 @@
             }
         }
 
+        function addBusinessUnit() {
+            const unitId = document.getElementById('unitId').value.trim().toLowerCase();
+            const unitName = document.getElementById('unitName').value.trim();
+            const unitDescription = document.getElementById('unitDescription').value.trim();
+            
+            if (!unitId || !unitName) {
+                showMessage('Please fill in Unit ID and Name!', 'unitsStatusMessage');
+                return;
+            }
+            
+            if (businessUnits.find(u => u.id === unitId)) {
+                showMessage('Unit ID already exists! Please choose a different one.', 'unitsStatusMessage');
+                return;
+            }
+            
+            if (!/^[a-z0-9]+$/.test(unitId)) {
+                showMessage('Unit ID must be lowercase letters and numbers only (no spaces or special characters).', 'unitsStatusMessage');
+                return;
+            }
+            
+            const newUnit = {
+                id: unitId,
+                name: unitName,
+                description: unitDescription || 'No description provided'
+            };
+            
+            businessUnits.push(newUnit);
+            localStorage.setItem('simple_kanban_units', JSON.stringify(businessUnits));
+            
+            showMessage('Business unit added successfully!', 'unitsStatusMessage');
+            document.getElementById('addUnitForm').reset();
+            loadBusinessUnitsList();
+        }
+
+        function loadBusinessUnitsList() {
+            const container = document.getElementById('businessUnitsList');
+            container.innerHTML = '';
+            
+            businessUnits.forEach(unit => {
+                const unitDiv = document.createElement('div');
+                unitDiv.style.cssText = 'background: #f8f9fa; margin-bottom: 10px; padding: 15px; border-radius: 8px; border-left: 4px solid #667eea;';
+                
+                const userCount = users.filter(u => u.businessUnit === unit.id).length;
+                const taskCount = tasks.filter(t => {
+                    const creator = users.find(u => u.username === t.createdBy);
+                    const assignee = users.find(u => u.username === t.assignee);
+                    return (creator && creator.businessUnit === unit.id) || (assignee && assignee.businessUnit === unit.id);
+                }).length;
+                
+                unitDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin: 0; color: #333;">${unit.name}</h4>
+                            <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">${unit.description}</p>
+                            <small style="color: #888;">ID: ${unit.id} • ${userCount} users • ${taskCount} tasks</small>
+                        </div>
+                        <div>
+                            <button class="btn btn-small" onclick="editBusinessUnit('${unit.id}')" style="margin-right: 5px; background: #ffc107; color: #333;">Edit</button>
+                            ${unit.id !== 'corporate' ? `<button class="btn btn-danger btn-small" onclick="deleteBusinessUnit('${unit.id}')">Delete</button>` : ''}
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(unitDiv);
+            });
+        }
+
+        function editBusinessUnit(unitId) {
+            const unit = businessUnits.find(u => u.id === unitId);
+            if (unit) {
+                const newName = prompt('Edit unit name:', unit.name);
+                if (newName && newName.trim()) {
+                    const newDescription = prompt('Edit description:', unit.description);
+                    
+                    unit.name = newName.trim();
+                    unit.description = newDescription ? newDescription.trim() : unit.description;
+                    
+                    localStorage.setItem('simple_kanban_units', JSON.stringify(businessUnits));
+                    loadBusinessUnitsList();
+                    showMessage('Business unit updated successfully!', 'unitsStatusMessage');
+                }
+            }
+        }
+
+        function deleteBusinessUnit(unitId) {
+            const unit = businessUnits.find(u => u.id === unitId);
+            const userCount = users.filter(u => u.businessUnit === unitId).length;
+            
+            if (userCount > 0) {
+                alert(`Cannot delete ${unit.name} - it has ${userCount} users assigned to it. Please reassign users first.`);
+                return;
+            }
+            
+            if (confirm(`Are you sure you want to delete the "${unit.name}" business unit? This action cannot be undone.`)) {
+                businessUnits = businessUnits.filter(u => u.id !== unitId);
+                localStorage.setItem('simple_kanban_units', JSON.stringify(businessUnits));
+                loadBusinessUnitsList();
+                showMessage('Business unit deleted successfully!', 'unitsStatusMessage');
+            }
+        }
+
+        function createUser() {
+            const fullName = document.getElementById('createFullName').value.trim();
+            const username = document.getElementById('createUsername').value.trim().toLowerCase();
+            const password = document.getElementById('createPassword').value;
+            const role = document.getElementById('createRole').value;
+            const businessUnit = document.getElementById('createBusinessUnit').value;
+
+            if (!fullName || !username || !password) {
+                showMessage('Please fill in all fields!', 'createUserStatusMessage');
+                return;
+            }
+
+            if (users.find(u => u.username === username)) {
+                showMessage('Username already exists!', 'createUserStatusMessage');
+                return;
+            }
+
+            const newUser = {
+                username: username,
+                password: password,
+                role: role,
+                name: fullName,
+                businessUnit: businessUnit
+            };
+
+            users.push(newUser);
+            localStorage.setItem('simple_kanban_users', JSON.stringify(users));
+
+            showMessage(`User created successfully with ${role} role in ${businessUnit} unit!`, 'createUserStatusMessage');
+            document.getElementById('createUserForm').reset();
+            
+            setTimeout(() => {
+                showMainApp();
+                populateAssigneeSelect(); // Refresh assignee dropdown
+            }, 2000);
+        }
+
         function deleteTask(id) {
             if (confirm('Are you sure you want to delete this task?')) {
                 tasks = tasks.filter(t => t.id !== id);
@@ -1276,4 +1298,4 @@
         }
     </script>
 </body>
-</html> 
+</html>
