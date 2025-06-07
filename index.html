@@ -1,1 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban Task Management System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        .login-box h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #667eea;
+            font-size: 28px;
+        }
+        .form-group { margin-bottom: 20px; }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: inline-block;
+            text-decoration: none;
+            text-align: center;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        .btn-secondary { background: #6c757d; }
+        .btn-danger { background: #dc3545; }
+        .btn-small { padding: 6px 12px; font-size: 14px; }
+        .demo-users {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .demo-users h3 {
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+        .demo-user {
+            display: block;
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .demo-user:hover { background: #e9ecef; }
+        .app-header {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .role-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .role-admin { background: #dc3545; color: white; }
+        .role-corporate-manager { background: #6f42c1; color: white; }
+        .role-business-manager { background: #ffc107; color: #333; }
+        .role-user { background: #28a745; color: white; }
+        
+        .business-unit-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 5px;
+        }
+        .unit-corporate { background: #6c757d; color: white; }
+        .unit-leasing { background: #17a2b8; color: white; }
+        .unit-abattoir { background: #dc3545; color: white; }
+        .unit-genmeat { background: #fd7e14; color: white; }
+        .unit-porkland { background: #e83e8c; color: white; }
+        .unit-ranc { background: #20c997; color: white; }
+        .unit-greenatom { background: #28a745; color: white; }
+        .task-form {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .kanban-board {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .kanban-column {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+        }
+        .column-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0;
+            text-align: center;
+            font-weight: 600;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .column-header.todo { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .column-header.inprogress { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #333; }
+        .column-header.review { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #333; }
+        .column-header.done { background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%); }
+        .task-count {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 14px;
+            min-width: 20px;
+            text-align: center;
+        }
+        .column-body {
+            padding: 20px;
+            flex: 1;
+            min-height: 400px;
+            position: relative;
+        }
+        .task-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+            cursor: move;
+            transition: all 0.3s ease;
+        }
+        .task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        .task-card.priority-high { border-left-color: #dc3545; }
+        .task-card.priority-medium { border-left-color: #ffc107; }
+        .task-card.priority-low { border-left-color: #28a745; }
+        .task-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .task-description {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+        .task-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .assignee-badge {
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+        .priority-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .priority-badge.high { background: #dc3545; color: white; }
+        .priority-badge.medium { background: #ffc107; color: #333; }
+        .priority-badge.low { background: #28a745; color: white; }
+        .task-actions {
+            display: flex;
+            gap: 5px;
+            justify-content: flex-end;
+        }
+        .hidden { display: none !important; }
+        .empty-column {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+            font-style: italic;
+            text-align: center;
+        }
+        .status-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border: 1px solid #c3e6cb;
+        }
+        @media (max-width: 768px) {
+            .form-row { grid-template-columns: 1fr; }
+            .app-header { flex-direction: column; gap: 15px; }
+            .kanban-board { grid-template-columns: 1fr; }
+            .container { padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-box">
+            <h2>📋 Kanban Task Manager</h2>
+            <div id="statusMessage" class="status-message hidden"></div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" required>
+                </div>
 
+    <!-- Business Units Management Screen -->
+    <div id="businessUnitsScreen" class="login-container hidden">
+        <div class="login-box" style="max-width: 600px;">
+            <h2>🏢 Business Units Management</h2>
+            <div id="unitsStatusMessage" class="status-message hidden"></div>
+            
+            <!-- Add New Business Unit -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h3>➕ Add New Business Unit</h3>
+                <form id="addUnitForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="unitId">Unit ID (lowercase, no spaces)</label>
+                            <input type="text" id="unitId" required placeholder="e.g., newunit">
+                        </div>
+                        <div class="form-group">
+                            <label for="unitName">Unit Name</label>
+                            <input type="text" id="unitName" required placeholder="e.g., New Unit">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="unitDescription">Description</label>
+                        <textarea id="unitDescription" rows="2" placeholder="Brief description of this business unit"></textarea>
+                    </div>
+                    <button type="submit" class="btn">Add Business Unit</button>
+                </form>
+            </div>
+            
+            <!-- Existing Business Units -->
+            <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h3>📋 Existing Business Units</h3>
+                <div id="businessUnitsList">
+                    <!-- Units will be populated here -->
+                </div>
+            </div>
+            
+            <div style="text-align: center;">
+                <button id="backToMainBtn" class="btn btn-secondary" style="width: 100%;">
+                    ← Back to Main App
+                </button>
+            </div>
+        </div>
+    </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Login</button>
+            </form>
+            
+            <div style="text-align: center; margin: 20px 0;">
+                <button id="showRegisterBtn" class="btn btn-secondary" style="width: 100%;">
+                    👤 Create New Account
+                </button>
+            </div>
+            
+            <!-- Admin User Creation Button (only shown when admin is logged in) -->
+            <div id="adminCreateUser" style="text-align: center; margin: 10px 0;" class="hidden">
+                <button id="showAdminRegisterBtn" class="btn" style="width: 100%; background: #dc3545;">
+                    👤 Create User (Admin)
+                </button>
+            </div>
+            
+            <div class="demo-users">
+                <h3>🎯 Demo Users</h3>
+                <p style="margin-bottom: 15px; color: #666; font-size: 14px;">
+                    Click the username/password below to copy and paste:
+                </p>
+                <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                    <strong>Username:</strong> admin<br>
+                    <strong>Password:</strong> admin123<br>
+                    <small>Role: Full system access</small>
+                </div>
+                <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                    <strong>Username:</strong> corp-mgr<br>
+                    <strong>Password:</strong> manager123<br>
+                    <small>Role: Corporate Manager (sees all units)</small>
+                </div>
+                <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                    <strong>Username:</strong> lease-mgr<br>
+                    <strong>Password:</strong> manager123<br>
+                    <small>Role: Leasing Manager (sees leasing unit only)</small>
+                </div>
+                <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                    <strong>Username:</strong> john<br>
+                    <strong>Password:</strong> user123<br>
+                    <small>Role: User in Leasing unit</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Registration Screen -->
+    <div id="registerScreen" class="login-container hidden">
+        <div class="login-box">
+            <h2>👤 Create Account</h2>
+            <div id="regStatusMessage" class="status-message hidden"></div>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="regFullName">Full Name</label>
+                    <input type="text" id="regFullName" required placeholder="Enter your full name">
+                </div>
+                <div class="form-group">
+                    <label for="regUsername">Username</label>
+                    <input type="text" id="regUsername" required placeholder="Choose a username">
+                </div>
+                <div class="form-group">
+                    <label for="regPassword">Password</label>
+                    <input type="password" id="regPassword" required placeholder="Create a password">
+                </div>
+                <div class="form-group">
+                    <label for="regConfirmPassword">Confirm Password</label>
+                    <input type="password" id="regConfirmPassword" required placeholder="Confirm your password">
+                </div>
+                <div class="form-group">
+                    <label for="regRole">User Role</label>
+                    <select id="regRole" required>
+                        <option value="user">User - Regular access</option>
+                        <option value="business-manager">Business Unit Manager - Manages specific unit</option>
+                        <option value="corporate-manager">Corporate Manager - Manages all units</option>
+                        <option value="admin">Admin - Full system access</option>
+                    </select>
+                    <small style="color: #666; font-size: 12px;" id="roleHelp">Select your role in the organization</small>
+                </div>
+                <div class="form-group">
+                    <label for="regBusinessUnit">Business Unit</label>
+                    <select id="regBusinessUnit" required>
+                        <!-- Options will be populated dynamically -->
+                    </select>
+                    <small style="color: #666; font-size: 12px;">Select your business unit/department</small>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Create Account</button>
+            </form>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button id="showLoginBtn" class="btn btn-secondary" style="width: 100%;">
+                    ← Back to Login
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="hidden">
+        <div class="container">
+            <div class="app-header">
+                <div class="user-info">
+                    <h1>📋 Kanban Task Manager</h1>
+                    <span id="userRole" class="role-badge"></span>
+                    <span id="businessUnit" class="business-unit-badge"></span>
+                    <span id="userName"></span>
+                </div>
+                <div>
+                    <button id="manageUnitsBtn" class="btn hidden" style="margin-right: 10px; background: #6f42c1;">🏢 Manage Units</button>
+                    <button id="createUserBtn" class="btn hidden" style="margin-right: 10px;">👤 Create User</button>
+                    <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+                </div>
+            </div>
+
+            <div class="task-form">
+                <h3>➕ Add New Task</h3>
+                <form id="taskForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="taskTitle">Task Title</label>
+                            <input type="text" id="taskTitle" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="taskPriority">Priority</label>
+                            <select id="taskPriority" required>
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="taskAssignee">Assign To</label>
+                            <select id="taskAssignee" required>
+                                <option value="">Select User</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="taskDueDate">Due Date</label>
+                            <input type="date" id="taskDueDate">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="taskDescription">Description</label>
+                        <textarea id="taskDescription" rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="btn">Add Task</button>
+                </form>
+            </div>
+
+            <div class="kanban-board">
+                <div class="kanban-column">
+                    <div class="column-header todo">
+                        📝 TO DO
+                        <span class="task-count" id="todoCount">0</span>
+                    </div>
+                    <div class="column-body" data-status="todo" id="todoColumn">
+                        <div class="empty-column">Add tasks above!</div>
+                    </div>
+                </div>
+
+                <div class="kanban-column">
+                    <div class="column-header inprogress">
+                        🔥 IN PROGRESS
+                        <span class="task-count" id="inprogressCount">0</span>
+                    </div>
+                    <div class="column-body" data-status="inprogress" id="inprogressColumn">
+                        <div class="empty-column">Drag tasks here</div>
+                    </div>
+                </div>
+
+                <div class="kanban-column">
+                    <div class="column-header review">
+                        👀 REVIEW
+                        <span class="task-count" id="reviewCount">0</span>
+                    </div>
+                    <div class="column-body" data-status="review" id="reviewColumn">
+                        <div class="empty-column">Tasks for review</div>
+                    </div>
+                </div>
+
+                <div class="kanban-column">
+                    <div class="column-header done">
+                        ✅ DONE
+                        <span class="task-count" id="doneCount">0</span>
+                    </div>
+                    <div class="column-body" data-status="done" id="doneColumn">
+                        <div class="empty-column">Completed tasks</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentUser = null;
+        let tasks = [];
+        let users = [];
+        let businessUnits = [];
+        let isAdminCreatingUser = false;
+
+        // Default users with your business units
+        const defaultUsers = [
+            { username: 'admin', password: 'admin123', role: 'admin', name: 'Admin User', businessUnit: 'corporate' },
+            { username: 'corp-mgr', password: 'manager123', role: 'corporate-manager', name: 'Corporate Manager', businessUnit: 'corporate' },
+            { username: 'lease-mgr', password: 'manager123', role: 'business-manager', name: 'Leasing Manager', businessUnit: 'leasing' },
+            { username: 'abattoir-mgr', password: 'manager123', role: 'business-manager', name: 'Abattoir Manager', businessUnit: 'abattoir' },
+            { username: 'john', password: 'user123', role: 'user', name: 'John Doe', businessUnit: 'leasing' },
+            { username: 'sarah', password: 'user123', role: 'user', name: 'Sarah Smith', businessUnit: 'genmeat' }
+        ];
+
+        // Default business units
+        const defaultBusinessUnits = [
+            { id: 'corporate', name: 'Corporate', description: 'Corporate headquarters and administration' },
+            { id: 'leasing', name: 'Leasing', description: 'Property leasing and management' },
+            { id: 'abattoir', name: 'Abattoir', description: 'Abattoir operations and management' },
+            { id: 'genmeat', name: 'Genmeat', description: 'General meat processing and distribution' },
+            { id: 'porkland', name: 'Porkland', description: 'Pork processing and specialty products' },
+            { id: 'ranc', name: 'Ranc', description: 'Ranch operations and livestock management' },
+            { id: 'greenatom', name: 'Green Atom', description: 'Sustainable and green initiatives' }
+        ];
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded, initializing...');
+            initApp();
+        });
+
+        function initApp() {
+            loadData();
+            setupEventListeners();
+            showMessage('App ready! Try registering a new account.', 'statusMessage');
+        }
+
+        function loadData() {
+            loadBusinessUnits();
+            loadUsers();
+            loadTasks();
+        }
+
+        function loadBusinessUnits() {
+            try {
+                const storedUnits = localStorage.getItem('kanban_business_units');
+                if (storedUnits) {
+                    businessUnits = JSON.parse(storedUnits);
+                    // Ensure default units exist
+                    defaultBusinessUnits.forEach(defaultUnit => {
+                        if (!businessUnits.find(u => u.id === defaultUnit.id)) {
+                            businessUnits.push(defaultUnit);
+                        }
+                    });
+                } else {
+                    businessUnits = [...defaultBusinessUnits];
+                }
+                localStorage.setItem('kanban_business_units', JSON.stringify(businessUnits));
+                console.log('Business units loaded:', businessUnits.length);
+            } catch (error) {
+                console.error('Error loading business units:', error);
+                businessUnits = [...defaultBusinessUnits];
+            }
+        }
+        function loadUsers() {
+            try {
+                const storedUsers = localStorage.getItem('kanban_users');
+                if (storedUsers) {
+                    users = JSON.parse(storedUsers);
+                    // Ensure default users exist
+                    defaultUsers.forEach(defaultUser => {
+                        if (!users.find(u => u.username === defaultUser.username)) {
+                            users.push(defaultUser);
+                        }
+                    });
+                } else {
+                    users = [...defaultUsers];
+                }
+                localStorage.setItem('kanban_users', JSON.stringify(users));
+                console.log('Users loaded:', users.length);
+            } catch (error) {
+                console.error('Error loading users:', error);
+                users = [...defaultUsers];
+            }
+        }
+        function loadTasks() {
+            try {
+                const storedTasks = localStorage.getItem('kanban_tasks');
+                if (storedTasks) {
+                    tasks = JSON.parse(storedTasks);
+                } else {
+                    tasks = [];
+                }
+                console.log('Tasks loaded:', tasks.length);
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+                tasks = [];
+            }
+        }
+
+        function setupEventListeners() {
+            // Login form
+            document.getElementById('loginForm').addEventListener('submit', handleLogin);
+            
+            // Registration form
+            document.getElementById('registerForm').addEventListener('submit', handleRegister);
+            
+            // Screen navigation
+            document.getElementById('showRegisterBtn').addEventListener('click', function() {
+                isAdminCreatingUser = false;
+                showRegisterScreen();
+            });
+            document.getElementById('showLoginBtn').addEventListener('click', showLoginScreen);
+            
+            // Admin user creation
+            document.getElementById('showAdminRegisterBtn').addEventListener('click', function() {
+                isAdminCreatingUser = true;
+                showRegisterScreen();
+            });
+            document.getElementById('createUserBtn').addEventListener('click', function() {
+                isAdminCreatingUser = true;
+                showRegisterScreen();
+            });
+            
+            // Business units management
+            document.getElementById('manageUnitsBtn').addEventListener('click', showBusinessUnitsScreen);
+            document.getElementById('backToMainBtn').addEventListener('click', showMainApp);
+            document.getElementById('addUnitForm').addEventListener('submit', handleAddBusinessUnit);
+        function showLoginScreen() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('businessUnitsScreen').classList.add('hidden');
+        }
+
+        function showRegisterScreen() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('businessUnitsScreen').classList.add('hidden');
+            
+            // Populate business units dropdown
+            populateBusinessUnitsDropdown();
+            
+            // Update help text based on whether admin is creating user
+            const roleHelp = document.getElementById('roleHelp');
+            
+            if (isAdminCreatingUser) {
+                document.querySelector('#registerScreen h2').textContent = '👤 Create New User (Admin)';
+                roleHelp.textContent = 'As admin, you can assign any role to this user';
+                showMessage('Creating user as admin - you have full control over role and business unit.', 'regStatusMessage');
+            } else {
+                document.querySelector('#registerScreen h2').textContent = '👤 Create Account';
+                roleHelp.textContent = 'Select your role in the organization (Admin role requires existing admin approval)';
+                showMessage('Fill out the form below to create your account. Choose your role and department.', 'regStatusMessage');
+            }
+        }
+
+        function showMainApp() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('businessUnitsScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            
+            // Update user info
+            document.getElementById('userName').textContent = currentUser.name;
+            
+            const roleElement = document.getElementById('userRole');
+            roleElement.textContent = currentUser.role.replace('-', ' ');
+            roleElement.className = `role-badge role-${currentUser.role}`;
+            
+            const businessUnitElement = document.getElementById('businessUnit');
+            const unit = businessUnits.find(u => u.id === currentUser.businessUnit);
+            businessUnitElement.textContent = unit ? unit.name : currentUser.businessUnit;
+            businessUnitElement.className = `business-unit-badge unit-${currentUser.businessUnit}`;
+            
+            // Show admin buttons
+            if (currentUser.role === 'admin') {
+                document.getElementById('createUserBtn').classList.remove('hidden');
+                document.getElementById('manageUnitsBtn').classList.remove('hidden');
+            }
+            
+            populateAssigneeSelect();
+            loadKanbanBoard();
+        }
+
+        function showBusinessUnitsScreen() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('businessUnitsScreen').classList.remove('hidden');
+            
+            loadBusinessUnitsList();
+        }
+
+        function populateBusinessUnitsDropdown() {
+            const select = document.getElementById('regBusinessUnit');
+            select.innerHTML = '';
+            
+            businessUnits.forEach(unit => {
+                const option = document.createElement('option');
+                option.value = unit.id;
+                option.textContent = unit.name;
+                select.appendChild(option);
+            });
+        }
+
+        function handleAddBusinessUnit(e) {
+            e.preventDefault();
+            
+            const unitId = document.getElementById('unitId').value.trim().toLowerCase();
+            const unitName = document.getElementById('unitName').value.trim();
+            const unitDescription = document.getElementById('unitDescription').value.trim();
+            
+            if (!unitId || !unitName) {
+                showMessage('Please fill in Unit ID and Name!', 'unitsStatusMessage');
+                return;
+            }
+            
+            if (businessUnits.find(u => u.id === unitId)) {
+                showMessage('Unit ID already exists! Please choose a different one.', 'unitsStatusMessage');
+                return;
+            }
+            
+            if (!/^[a-z0-9]+$/.test(unitId)) {
+                showMessage('Unit ID must be lowercase letters and numbers only (no spaces or special characters).', 'unitsStatusMessage');
+                return;
+            }
+            
+            const newUnit = {
+                id: unitId,
+                name: unitName,
+                description: unitDescription || 'No description provided'
+            };
+            
+            businessUnits.push(newUnit);
+            localStorage.setItem('kanban_business_units', JSON.stringify(businessUnits));
+            
+            showMessage('Business unit added successfully!', 'unitsStatusMessage');
+            document.getElementById('addUnitForm').reset();
+            loadBusinessUnitsList();
+        }
+
+        function loadBusinessUnitsList() {
+            const container = document.getElementById('businessUnitsList');
+            container.innerHTML = '';
+            
+            businessUnits.forEach(unit => {
+                const unitDiv = document.createElement('div');
+                unitDiv.style.cssText = 'background: #f8f9fa; margin-bottom: 10px; padding: 15px; border-radius: 8px; border-left: 4px solid #667eea;';
+                
+                const userCount = users.filter(u => u.businessUnit === unit.id).length;
+                const taskCount = tasks.filter(t => {
+                    const creator = users.find(u => u.username === t.createdBy);
+                    const assignee = users.find(u => u.username === t.assignee);
+                    return (creator && creator.businessUnit === unit.id) || (assignee && assignee.businessUnit === unit.id);
+                }).length;
+                
+                unitDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin: 0; color: #333;">${unit.name}</h4>
+                            <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">${unit.description}</p>
+                            <small style="color: #888;">ID: ${unit.id} • ${userCount} users • ${taskCount} tasks</small>
+                        </div>
+                        <div>
+                            <button class="btn btn-small" onclick="editBusinessUnit('${unit.id}')" style="margin-right: 5px; background: #ffc107; color: #333;">Edit</button>
+                            ${unit.id !== 'corporate' ? `<button class="btn btn-danger btn-small" onclick="deleteBusinessUnit('${unit.id}')">Delete</button>` : ''}
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(unitDiv);
+            });
+        }
+
+        function editBusinessUnit(unitId) {
+            const unit = businessUnits.find(u => u.id === unitId);
+            if (unit) {
+                const newName = prompt('Edit unit name:', unit.name);
+                if (newName && newName.trim()) {
+                    const newDescription = prompt('Edit description:', unit.description);
+                    
+                    unit.name = newName.trim();
+                    unit.description = newDescription ? newDescription.trim() : unit.description;
+                    
+                    localStorage.setItem('kanban_business_units', JSON.stringify(businessUnits));
+                    loadBusinessUnitsList();
+                    showMessage('Business unit updated successfully!', 'unitsStatusMessage');
+                }
+            }
+        }
+
+        function deleteBusinessUnit(unitId) {
+            const unit = businessUnits.find(u => u.id === unitId);
+            const userCount = users.filter(u => u.businessUnit === unitId).length;
+            
+            if (userCount > 0) {
+                alert(`Cannot delete ${unit.name} - it has ${userCount} users assigned to it. Please reassign users first.`);
+                return;
+            }
+            
+            if (confirm(`Are you sure you want to delete the "${unit.name}" business unit? This action cannot be undone.`)) {
+                businessUnits = businessUnits.filter(u => u.id !== unitId);
+                localStorage.setItem('kanban_business_units', JSON.stringify(businessUnits));
+                loadBusinessUnitsList();
+                showMessage('Business unit deleted successfully!', 'unitsStatusMessage');
+            }
+        }
+
+        function showMessage(message, elementId) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = message;
+                element.classList.remove('hidden');
+                setTimeout(() => {
+                    element.classList.add('hidden');
+                }, 5000);
+            }
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            
+            console.log('Login attempt for:', username);
+            
+            const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
+            
+            if (user) {
+                // Migrate old users to have business units
+                if (!user.businessUnit) {
+                    user.businessUnit = user.role === 'admin' ? 'corporate' : 'leasing';
+                    if (user.role === 'manager') {
+                        user.role = 'business-manager';
+                    }
+                    localStorage.setItem('kanban_users', JSON.stringify(users));
+                }
+                
+                currentUser = user;
+                console.log('Login successful for:', user.name, 'Role:', user.role, 'Unit:', user.businessUnit);
+                
+                // Show admin options in login screen if admin
+                if (user.role === 'admin') {
+                    document.getElementById('adminCreateUser').classList.remove('hidden');
+                }
+                
+                showMainApp();
+            } else {
+                console.log('Login failed for:', username);
+                showMessage('Invalid username or password. Try the demo accounts above or create a new account.', 'statusMessage');
+            }
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            
+            const fullName = document.getElementById('regFullName').value.trim();
+            const username = document.getElementById('regUsername').value.trim().toLowerCase();
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('regConfirmPassword').value;
+            const role = document.getElementById('regRole').value;
+            const businessUnit = document.getElementById('regBusinessUnit').value;
+
+            console.log('Registration attempt for:', username, 'Role:', role, 'Unit:', businessUnit, 'Admin creating:', isAdminCreatingUser);
+
+            // Validation
+            if (!fullName || !username || !password) {
+                showMessage('Please fill in all fields!', 'regStatusMessage');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showMessage('Passwords do not match!', 'regStatusMessage');
+                return;
+            }
+
+            if (password.length < 3) {
+                showMessage('Password must be at least 3 characters long!', 'regStatusMessage');
+                return;
+            }
+
+            if (users.find(u => u.username === username)) {
+                showMessage('Username already exists! Please choose a different one.', 'regStatusMessage');
+                return;
+            }
+
+            // Role validation for non-admin created accounts
+            if (!isAdminCreatingUser) {
+                // Regular users can only create certain roles
+                if (role === 'admin') {
+                    showMessage('Admin role can only be created by existing admins.', 'regStatusMessage');
+                    return;
+                }
+                
+                // Check if trying to create corporate manager
+                if (role === 'corporate-manager') {
+                    if (!confirm('You are creating a Corporate Manager account that will have access to ALL business units. Continue?')) {
+                        return;
+                    }
+                }
+                
+                // Check if trying to create business manager
+                if (role === 'business-manager') {
+                    if (!confirm(`You are creating a Business Manager account for ${businessUnit.toUpperCase()} unit. This role can manage all users and tasks in this unit. Continue?`)) {
+                        return;
+                    }
+                }
+            }
+
+            // Create new user
+            const newUser = {
+                username: username,
+                password: password,
+                role: role,
+                name: fullName,
+                businessUnit: businessUnit
+            };
+
+            users.push(newUser);
+            localStorage.setItem('kanban_users', JSON.stringify(users));
+
+            console.log('User registered successfully:', username, 'with role:', role, 'in unit:', businessUnit);
+            
+            if (isAdminCreatingUser) {
+                showMessage(`User created successfully with ${role} role in ${businessUnit} unit! Returning to main app...`, 'regStatusMessage');
+                setTimeout(() => {
+                    document.getElementById('registerForm').reset();
+                    showMainApp();
+                    // Refresh user list in assignee dropdown
+                    populateAssigneeSelect();
+                }, 2000);
+            } else {
+                showMessage(`Account created successfully as ${role} in ${businessUnit} unit! Redirecting to login...`, 'regStatusMessage');
+                setTimeout(() => {
+                    document.getElementById('registerForm').reset();
+                    showLoginScreen();
+                    document.getElementById('username').value = username;
+                    showMessage('Account created! You can now log in with your new credentials.', 'statusMessage');
+                }, 2000);
+            }
+        }
+
+        function showLoginScreen() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+        }
+
+            
+            // Logout
+            document.getElementById('logoutBtn').addEventListener('click', logout);
+            
+            // Task form
+            document.getElementById('taskForm').addEventListener('submit', handleAddTask);
+            
+            console.log('Event listeners set up');
+        }
+
+        function showMainApp() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            
+            // Update user info
+            document.getElementById('userName').textContent = currentUser.name;
+            const roleElement = document.getElementById('userRole');
+            roleElement.textContent = currentUser.role;
+            roleElement.className = `role-badge role-${currentUser.role}`;
+            
+            // Show create user button for admins
+            if (currentUser.role === 'admin') {
+                document.getElementById('createUserBtn').classList.remove('hidden');
+            }
+            
+            populateAssigneeSelect();
+            loadKanbanBoard();
+            setupDragAndDrop();
+        }
+
+        function setupDragAndDrop() {
+            const columns = document.querySelectorAll('.column-body');
+            
+            columns.forEach(column => {
+                column.addEventListener('dragover', handleDragOver);
+                column.addEventListener('drop', handleDrop);
+                column.addEventListener('dragenter', handleDragEnter);
+                column.addEventListener('dragleave', handleDragLeave);
+            });
+        }
+
+        function handleDragStart(e) {
+            const taskId = this.dataset.taskId;
+            this.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', taskId);
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            document.querySelectorAll('.column-body').forEach(col => {
+                col.classList.remove('drag-over');
+            });
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDragEnter(e) {
+            e.preventDefault();
+            this.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+            
+            const taskId = parseInt(e.dataTransfer.getData('text/plain'));
+            const newStatus = this.dataset.status;
+            
+            if (taskId && newStatus) {
+                moveTaskToStatus(taskId, newStatus);
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            isAdminCreatingUser = false;
+            showLoginScreen();
+            document.getElementById('loginForm').reset();
+            document.getElementById('adminCreateUser').classList.add('hidden');
+            console.log('User logged out');
+        }
+
+        function showLoginScreen() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('businessUnitsScreen').classList.add('hidden');
+        }
+
+        function populateAssigneeSelect() {
+            const select = document.getElementById('taskAssignee');
+            select.innerHTML = '<option value="">Select User</option>';
+            
+            // Filter users based on current user's role and business unit
+            let availableUsers = [];
+            
+            if (currentUser.role === 'admin') {
+                // Admin can see all users
+                availableUsers = users;
+            } else if (currentUser.role === 'corporate-manager') {
+                // Corporate manager can see all users
+                availableUsers = users;
+            } else if (currentUser.role === 'business-manager') {
+                // Business manager can only see users in their business unit
+                availableUsers = users.filter(user => 
+                    user.businessUnit === currentUser.businessUnit ||
+                    user.role === 'admin' ||
+                    user.role === 'corporate-manager'
+                );
+            } else {
+                // Regular users can only see users in their business unit + managers + admins
+                availableUsers = users.filter(user => 
+                    user.businessUnit === currentUser.businessUnit ||
+                    user.role === 'admin' ||
+                    user.role === 'corporate-manager'
+                );
+            }
+            
+            availableUsers.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.username;
+                option.textContent = `${user.name} (${user.businessUnit})`;
+                select.appendChild(option);
+            });
+        }
+
+        function handleAddTask(e) {
+            e.preventDefault();
+            
+            const task = {
+                id: Date.now(),
+                title: document.getElementById('taskTitle').value,
+                description: document.getElementById('taskDescription').value,
+                priority: document.getElementById('taskPriority').value,
+                assignee: document.getElementById('taskAssignee').value,
+                dueDate: document.getElementById('taskDueDate').value,
+                status: 'todo',
+                createdBy: currentUser.username,
+                createdAt: new Date().toISOString()
+            };
+            
+            tasks.push(task);
+            localStorage.setItem('kanban_tasks', JSON.stringify(tasks));
+            loadKanbanBoard();
+            document.getElementById('taskForm').reset();
+            console.log('Task added successfully');
+        }
+
+        function loadKanbanBoard() {
+            const columns = ['todo', 'inprogress', 'review', 'done'];
+            
+            columns.forEach(status => {
+                const column = document.getElementById(`${status}Column`);
+                column.innerHTML = '';
+                
+                // Filter tasks based on user role and business unit
+                const userTasks = tasks.filter(task => {
+                    let hasAccess = false;
+                    
+                    if (currentUser.role === 'admin') {
+                        // Admin can see all tasks
+                        hasAccess = true;
+                    } else if (currentUser.role === 'corporate-manager') {
+                        // Corporate manager can see all tasks
+                        hasAccess = true;
+                    } else if (currentUser.role === 'business-manager') {
+                        // Business manager can see tasks in their business unit
+                        const taskCreator = users.find(u => u.username === task.createdBy);
+                        const taskAssignee = users.find(u => u.username === task.assignee);
+                        
+                        hasAccess = (taskCreator && taskCreator.businessUnit === currentUser.businessUnit) ||
+                                   (taskAssignee && taskAssignee.businessUnit === currentUser.businessUnit) ||
+                                   task.createdBy === currentUser.username ||
+                                   task.assignee === currentUser.username;
+                    } else {
+                        // Regular users can only see their own tasks or tasks assigned to them
+                        hasAccess = task.assignee === currentUser.username || 
+                                   task.createdBy === currentUser.username;
+                    }
+                    
+                    return task.status === status && hasAccess;
+                });
+                
+                if (userTasks.length === 0) {
+                    const emptyMessages = {
+                        todo: 'Add tasks above!',
+                        inprogress: 'Drag tasks here',
+                        review: 'Tasks for review',
+                        done: 'Completed tasks'
+                    };
+                    column.innerHTML = `<div class="empty-column">${emptyMessages[status]}</div>`;
+                } else {
+                    userTasks.forEach(task => {
+                        const taskElement = createTaskCard(task);
+                        column.appendChild(taskElement);
+                    });
+                }
+                
+                document.getElementById(`${status}Count`).textContent = userTasks.length;
+            });
+        }
+
+        function createTaskCard(task) {
+            const div = document.createElement('div');
+            div.className = `task-card priority-${task.priority}`;
+            div.draggable = true;
+            div.dataset.taskId = task.id;
+            
+            const assigneeUser = users.find(u => u.username === task.assignee);
+            
+            // Determine available move buttons based on current status
+            const moveButtons = getMoveButtons(task.status, task.id);
+            
+            div.innerHTML = `
+                <div class="task-title">${task.title}</div>
+                ${task.description ? `<div class="task-description">${task.description}</div>` : ''}
+                <div class="task-meta">
+                    <span class="priority-badge ${task.priority}">${task.priority}</span>
+                    <span class="assignee-badge">${assigneeUser ? assigneeUser.name : 'Unassigned'}</span>
+                </div>
+                ${task.dueDate ? `<div style="font-size: 12px; color: #666; margin-top: 5px;">
+                    📅 ${new Date(task.dueDate).toLocaleDateString()}
+                </div>` : ''}
+                <div style="margin-top: 10px;">
+                    ${moveButtons}
+                </div>
+                <div class="task-actions">
+                    <button class="btn btn-danger btn-small" onclick="deleteTask(${task.id})">
+                        Delete
+                    </button>
+                </div>
+            `;
+            
+            // Add drag event listeners
+            div.addEventListener('dragstart', handleDragStart);
+            div.addEventListener('dragend', handleDragEnd);
+            
+            return div;
+        }
+
+        function getMoveButtons(currentStatus, taskId) {
+            const statusFlow = {
+                'todo': { next: 'inprogress', nextLabel: '▶️ Start', prev: null },
+                'inprogress': { next: 'review', nextLabel: '▶️ Review', prev: 'todo', prevLabel: '◀️ Todo' },
+                'review': { next: 'done', nextLabel: '▶️ Done', prev: 'inprogress', prevLabel: '◀️ Progress' },
+                'done': { next: null, prev: 'review', prevLabel: '◀️ Review' }
+            };
+            
+            const flow = statusFlow[currentStatus];
+            let buttons = '';
+            
+            if (flow.prev) {
+                buttons += `<button class="move-btn" onclick="moveTaskToStatus(${taskId}, '${flow.prev}')">${flow.prevLabel}</button>`;
+            }
+            
+            if (flow.next) {
+                buttons += `<button class="move-btn" onclick="moveTaskToStatus(${taskId}, '${flow.next}')">${flow.nextLabel}</button>`;
+            }
+            
+            return buttons;
+        }
+
+        function moveTaskToStatus(taskId, newStatus) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                // Check permissions based on business units
+                let canMove = false;
+                
+                if (currentUser.role === 'admin' || currentUser.role === 'corporate-manager') {
+                    canMove = true;
+                } else if (currentUser.role === 'business-manager') {
+                    const taskCreator = users.find(u => u.username === task.createdBy);
+                    const taskAssignee = users.find(u => u.username === task.assignee);
+                    
+                    canMove = (taskCreator && taskCreator.businessUnit === currentUser.businessUnit) ||
+                             (taskAssignee && taskAssignee.businessUnit === currentUser.businessUnit) ||
+                             task.createdBy === currentUser.username ||
+                             task.assignee === currentUser.username;
+                } else {
+                    canMove = task.assignee === currentUser.username || 
+                             task.createdBy === currentUser.username;
+                }
+                
+                if (canMove) {
+                    task.status = newStatus;
+                    localStorage.setItem('kanban_tasks', JSON.stringify(tasks));
+                    loadKanbanBoard();
+                    console.log(`Task moved to ${newStatus}`);
+                } else {
+                    alert('You do not have permission to move this task.');
+                }
+            }
+        }
+
+        function deleteTask(id) {
+            if (confirm('Are you sure you want to delete this task?')) {
+                tasks = tasks.filter(t => t.id !== id);
+                localStorage.setItem('kanban_tasks', JSON.stringify(tasks));
+                loadKanbanBoard();
+                console.log('Task deleted');
+            }
+        }
+    </script>
+</body>
+</html>
