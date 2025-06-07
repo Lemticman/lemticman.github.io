@@ -562,16 +562,37 @@
             { id: 'greenatom', name: 'Green Atom', description: 'Sustainable and green initiatives' }
         ];
 
-        // Initialize on page load
+        // Initialize on page load with delay to ensure DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Page loaded, initializing...');
-            initApp();
+            console.log('DOM loaded, waiting for elements...');
+            // Add a small delay to ensure all elements are rendered
+            setTimeout(function() {
+                console.log('Starting app initialization...');
+                initApp();
+            }, 100);
         });
 
         function initApp() {
-            loadData();
-            setupEventListeners();
-            showMessage('App ready! Try registering a new account.', 'statusMessage');
+            try {
+                debug('Initializing app...');
+                loadData();
+                setupEventListeners();
+                showMessage('App ready! Try registering a new account.', 'statusMessage');
+                debug('App initialized successfully!');
+            } catch (error) {
+                console.error('Error during initialization:', error);
+                // Try to show error in status message if possible
+                const statusMsg = document.getElementById('statusMessage');
+                if (statusMsg) {
+                    statusMsg.textContent = 'Error loading app. Please refresh the page.';
+                    statusMsg.classList.remove('hidden');
+                }
+            }
+        }
+
+        function debug(message) {
+            console.log('DEBUG:', message);
+            // Don't try to access debug element if it might not exist
         }
 
         function loadData() {
@@ -848,13 +869,22 @@
         }
 
         function showMessage(message, elementId) {
-            const element = document.getElementById(elementId);
-            if (element) {
-                element.textContent = message;
-                element.classList.remove('hidden');
-                setTimeout(() => {
-                    element.classList.add('hidden');
-                }, 5000);
+            try {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.textContent = message;
+                    element.classList.remove('hidden');
+                    setTimeout(() => {
+                        if (element) {
+                            element.classList.add('hidden');
+                        }
+                    }, 5000);
+                } else {
+                    console.log('Message:', message, '(Element not found:', elementId, ')');
+                }
+            } catch (error) {
+                console.error('Error showing message:', error);
+                console.log('Message was:', message);
             }
         }
 
