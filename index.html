@@ -1,4 +1,434 @@
-<!DOCTYPE html>
+        function logout() {
+            currentUser = null;
+            showLoginScreen();
+            document.getElementById('loginForm').reset();
+        }
+
+        function addTask() {
+            const task = {
+                id: Date.now(),
+                title: document.getElementById('taskTitle').value,
+                description: document.getElementById('taskDescription').value,
+                priority: document.getElementById('taskPriority').value,
+                assignee: document.getElementById('taskAssignee').value,
+                dueDate: document.getElementById('taskDueDate').value,
+                status: 'todo',
+                createdBy: currentUser.username,
+                createdAt: new Date().toISOString(),
+                comments: []
+            };
+            
+            tasks.push(task);
+            localStorage.setItem('simple_kanban_tasks', JSON.stringify(tasks));
+            loadKanbanBoard();
+            document.getElementById('taskForm').reset();
+            console.log('Task added successfully');
+        }
+
+        function getFilteredTasks() {
+            const searchText = document.getElementById('searchText').value.toLowerCase();
+            const filterAssignee = document.getElementById('filterAssignee').value;
+            const filterPriority = document.getElementById('filterPriority').value;
+            const filterStatus = document.getElementById('filterStatus').value;
+
+            return tasks.filter(task => {
+                // Role-based filtering
+                let hasAccess = false;
+                if (currentUser.role === 'admin' || currentUser.role === 'corporate-manager') {
+                    hasAccess = true;
+                } else if (currentUser.role === 'business-manager') {
+                    const taskCreator = users.find(u => u.username === task.createdBy);
+                    const taskAssignee = users.find(u => u.username === task.assignee);
+                    hasAccess = (taskCreator && taskCreator.businessUnit === currentUser.businessUnit) ||
+                               (taskAssignee && taskAssignee.businessUnit === currentUser.businessUnit) ||
+                               task.createdBy === currentUser.username ||
+                               task.assignee === currentUser.username;
+                } else {
+                    hasAccess = task.assignee === currentUser.username || 
+                               task.createdBy === currentUser.username;
+                }
+
+                if (!hasAccess) return false;
+
+                // Search filter
+                if (searchText && !task.title.toLowerCase().includes(searchText) && 
+                    !task.description.toLowerCase().includes(searchText)) {
+                    return false;
+                }
+
+                // Assignee filter
+                if (filterAssignee && task.assignee !== filterAssignee) {
+                    return false;
+                }
+
+                // Priority filter
+                if (filterPriority && task.priority !== filterPriority) {
+                    return false;
+                }
+
+                // Status filter
+                if (filterStatus && task.status !== filterStatus) {
+                    return false;
+                }
+
+                return true;
+            });
+        }
+
+        function clearFilters() {
+            document.getElementById('searchText').value = '';
+            document.getElementById('filterAssignee').value = '';
+            document.getElementById('filterPriority').value = '';
+            document.getElementById('filterStatus').value = '';
+            loadKanbanBoard();
+        }
+
+        function loadKanbanBoard() {
+            const columns = ['todo', 'inprogress', 'review', 'done'];
+            const filteredTasks = getFilteredTasks();
+            
+            columns.forEach(status => {
+                const column = document.getElementById(`${status}Column`);
+                column.innerHTML = '';
+                
+                const statusTasks = filteredTasks.filter(task => task.status === status);
+                
+                if (statusTasks.length === 0) {
+                    const emptyMessages = {
+                        todo: 'Add tasks above!',
+                        inprogress: 'Drag tasks here',
+                        review: 'Tasks for review',
+                        done: 'Completed tasks'
+                    };
+                    column.innerHTML = `<div class="empty-column">${emptyMessages[status]}</div>`;
+                } else {
+                    statusTasks.forEach(task => {
+                        const taskElement = createTaskCard(task);
+                        column.appendChild(taskElement);
+                    });
+                }
+                
+                document.getElementById(`${status}Count`).textContent = statusTasks.length;
+            });
+        }
+
+        function createTaskCard(task) {
+            const div = document.createElement('div');
+            
+            // Check if task is overdue or due soon
+            let dueDateClass = '';
+            if (task.dueDate) {
+                const dueDate = new Date(task.dueDate);
+                const today = new Date();
+                const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+                
+                if (diffDays < 0 && task.status !== 'done') {
+                    dueDateClass = 'overdue';
+                } else if (diffDays <= 2 && diffDays >= 0 && task.status !== 'done') {
+                    dueDateClass = 'due-soon';
+                }
+            }
+            
+            div.className = `task-card priority-${task.priority} ${dueDateClass}`;
+            div.draggable = true;
+            div.dataset.taskId = task.id;
+            
+            const assigneeUser = users.find(u => u.username === task.assignee);
+            const moveButtons = getMoveButtons(task.status, task.id);
+            
+            // Check if task is overdue
+            let dueDateDisplay = '';
+            if (task.dueDate) {
+                const dueDate = new Date(task.dueDate);
+                const today = new Date();
+                const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+                
+                if (diffDays < 0 && task.status !== 'done') {
+                    dueDateDisplay = `📅 ${dueDate.toLocaleDateString()} <span style="color: #dc3545; font-weight: bold;">(${Math.abs(diffDays)} days overdue!)</span>`;
+                } else if (diffDays === 0) {
+                    dueDateDisplay = `📅 ${dueDate.toLocaleDateString()} <span style="color: #ffc107; font-weight: bold;">(Due today!)</span>`;
+                } else if (diffDays <= 2 && diffDays > 0) {
+                    dueDateDisplay = `📅 ${dueDate.toLocaleDateString()} <span style="color: #ffc107;">(Due in ${diffDays} day${diffDays > 1 ? 's' : ''})</span>`;
+                } else {
+                    dueDateDisplay = `📅 ${dueDate.toLocaleDateString()}`;
+                }
+            }
+            
+            div.innerHTML = `
+                <div class="task-title">${task.title}</div>
+                ${task.description ? `<div class="task-description">${task.description}</div>` : ''}
+                <div class="task-meta">
+                    <span class="priority-badge ${task.priority}">${task.priority}</span>
+                    <span class="assignee-badge">${assigneeUser ? assigneeUser.name : 'Unassigned'}</span>
+                </div>
+                ${task.dueDate ? `<div style="font-size: 12px; color: #666; margin-top: 5px;">
+                    ${dueDateDisplay}
+                </div>` : ''}
+                ${task.comments && task.comments.length > 0 ? `
+                    <div style="font-size: 11px; color: #667eea; margin-top: 5px;">
+                        💬 ${task.comments.length} comment${task.comments.length > 1 ? 's' : ''}
+                    </div>
+                ` : ''}
+                <div style="margin-top: 10px;">
+                    ${moveButtons}
+                </div>
+                <div class="task-actions">
+                    <button class="btn btn-small" onclick="openEditModal(${task.id})" style="background: #ffc107; color: #333; margin-right: 5px;">Edit</button>
+                    <button class="btn btn-danger btn-small" onclick="deleteTask(${task.id})">Delete</button>
+                </div>
+            `;
+            
+            // Add drag event listeners
+            div.addEventListener('dragstart', handleDragStart);
+            div.addEventListener('dragend', handleDragEnd);
+            
+            return div;
+        }
+
+        function openEditModal(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+
+            // Populate form with task data
+            document.getElementById('editTaskId').value = task.id;
+            document.getElementById('editTaskTitle').value = task.title;
+            document.getElementById('editTaskDescription').value = task.description || '';
+            document.getElementById('editTaskPriority').value = task.priority;
+            document.getElementById('editTaskDueDate').value = task.dueDate || '';
+
+            // Populate assignee dropdown for edit modal
+            const editAssigneeSelect = document.getElementById('editTaskAssignee');
+            editAssigneeSelect.innerHTML = '<option value="">Select User</option>';
+            
+            let availableUsers = [];
+            if (currentUser.role === 'admin' || currentUser.role === 'corporate-manager') {
+                availableUsers = users;
+            } else if (currentUser.role === 'business-manager') {
+                availableUsers = users.filter(user => 
+                    user.businessUnit === currentUser.businessUnit ||
+                    user.role === 'admin' ||
+                    user.role === 'corporate-manager'
+                );
+            } else {
+                availableUsers = users.filter(user => 
+                    user.businessUnit === currentUser.businessUnit
+                );
+            }
+            
+            availableUsers.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.username;
+                option.textContent = `${user.name} (${user.businessUnit})`;
+                if (user.username === task.assignee) {
+                    option.selected = true;
+                }
+                editAssigneeSelect.appendChild(option);
+            });
+
+            // Load comments
+            loadTaskComments(task);
+
+            // Show modal
+            document.getElementById('editTaskModal').style.display = 'block';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editTaskModal').style.display = 'none';
+        }
+
+        function updateTask() {
+            const taskId = parseInt(document.getElementById('editTaskId').value);
+            const task = tasks.find(t => t.id === taskId);
+            
+            if (task) {
+                task.title = document.getElementById('editTaskTitle').value;
+                task.description = document.getElementById('editTaskDescription').value;
+                task.priority = document.getElementById('editTaskPriority').value;
+                task.assignee = document.getElementById('editTaskAssignee').value;
+                task.dueDate = document.getElementById('editTaskDueDate').value;
+                task.updatedAt = new Date().toISOString();
+                task.updatedBy = currentUser.username;
+
+                localStorage.setItem('simple_kanban_tasks', JSON.stringify(tasks));
+                loadKanbanBoard();
+                closeEditModal();
+                console.log('Task updated successfully');
+            }
+        }
+
+        function loadTaskComments(task) {
+            const commentsContainer = document.getElementById('taskComments');
+            commentsContainer.innerHTML = '';
+
+            if (!task.comments || task.comments.length === 0) {
+                commentsContainer.innerHTML = '<p style="color: #666; font-style: italic;">No comments yet.</p>';
+                return;
+            }
+
+            task.comments.forEach(comment => {
+                const commentDiv = document.createElement('div');
+                commentDiv.className = 'comment';
+                
+                const commentUser = users.find(u => u.username === comment.author);
+                commentDiv.innerHTML = `
+                    <div class="comment-meta">
+                        ${commentUser ? commentUser.name : comment.author} • ${new Date(comment.createdAt).toLocaleString()}
+                    </div>
+                    <div class="comment-text">${comment.text}</div>
+                `;
+                
+                commentsContainer.appendChild(commentDiv);
+            });
+        }
+
+        function addComment() {
+            const commentText = document.getElementById('newComment').value.trim();
+            if (!commentText) return;
+
+            const taskId = parseInt(document.getElementById('editTaskId').value);
+            const task = tasks.find(t => t.id === taskId);
+            
+            if (task) {
+                if (!task.comments) {
+                    task.comments = [];
+                }
+
+                const comment = {
+                    id: Date.now(),
+                    text: commentText,
+                    author: currentUser.username,
+                    createdAt: new Date().toISOString()
+                };
+
+                task.comments.push(comment);
+                localStorage.setItem('simple_kanban_tasks', JSON.stringify(tasks));
+                
+                document.getElementById('newComment').value = '';
+                loadTaskComments(task);
+                loadKanbanBoard(); // Refresh to show comment count
+            }
+        }
+
+        function loadDashboard() {
+            calculateMetrics();
+            loadUnitPerformance();
+            loadUserPerformance();
+        }
+
+        function calculateMetrics() {
+            const allTasks = tasks.filter(task => {
+                if (currentUser.role === 'admin' || currentUser.role === 'corporate-manager') {
+                    return true;
+                } else if (currentUser.role === 'business-manager') {
+                    const taskCreator = users.find(u => u.username === task.createdBy);
+                    const taskAssignee = users.find(u => u.username === task.assignee);
+                    return (taskCreator && taskCreator.businessUnit === currentUser.businessUnit) ||
+                           (taskAssignee && taskAssignee.businessUnit === currentUser.businessUnit);
+                }
+                return false;
+            });
+
+            const totalTasks = allTasks.length;
+            const completedTasks = allTasks.filter(t => t.status === 'done').length;
+            const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+            
+            const overdueTasks = allTasks.filter(task => {
+                if (task.status === 'done' || !task.dueDate) return false;
+                const dueDate = new Date(task.dueDate);
+                const today = new Date();
+                return dueDate < today;
+            }).length;
+
+            const activeUsers = users.filter(user => {
+                if (currentUser.role === 'admin' || currentUser.role === 'corporate-manager') {
+                    return true;
+                } else if (currentUser.role === 'business-manager') {
+                    return user.businessUnit === currentUser.businessUnit;
+                }
+                return false;
+            }).length;
+
+            document.getElementById('totalTasksMetric').textContent = totalTasks;
+            document.getElementById('completionRateMetric').textContent = `${completionRate}%`;
+            document.getElementById('overdueTasksMetric').textContent = overdueTasks;
+            document.getElementById('activeUsersMetric').textContent = activeUsers;
+        }
+
+        function loadUnitPerformance() {
+            const container = document.getElementById('unitPerformance');
+            container.innerHTML = '';
+
+            let unitsToShow = [];
+            if (currentUser.role === 'admin' || currentUser.role === 'corporate-manager') {
+                unitsToShow = businessUnits;
+            } else if (currentUser.role === 'business-manager') {
+                unitsToShow = businessUnits.filter(unit => unit.id === currentUser.businessUnit);
+            }
+
+            unitsToShow.forEach(unit => {
+                const unitTasks = tasks.filter(task => {
+                    const taskCreator = users.find(u => u.username === task.createdBy);
+                    const taskAssignee = users.find(u => u.username === task.assignee);
+                    return (taskCreator && taskCreator.businessUnit === unit.id) ||
+                           (taskAssignee && taskAssignee.businessUnit === unit.id);
+                });
+
+                const totalTasks = unitTasks.length;
+                const completedTasks = unitTasks.filter(t => t.status === 'done').length;
+                const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+                const unitDiv = document.createElement('div');
+                unitDiv.style.cssText = 'margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px;';
+                unitDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <strong>${unit.name}</strong>
+                        <span>${completionRate}% complete</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${completionRate}%"></div>
+                    </div>
+                    <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                        ${completedTasks}/${totalTasks} tasks completed
+                    </div>
+                `;
+                container.appendChild(unitDiv);
+            });
+        }
+
+        function loadUserPerformance() {
+            const container = document.getElementById('userPerformance');
+            container.innerHTML = '';
+
+            let usersToShow = [];
+            if (currentUser.role === 'admin' || currentUser.role === 'corporate-manager') {
+                usersToShow = users;
+            } else if (currentUser.role === 'business-manager') {
+                usersToShow = users.filter(user => user.businessUnit === currentUser.businessUnit);
+            }
+
+            usersToShow.forEach(user => {
+                const userTasks = tasks.filter(t => t.assignee === user.username);
+                const completedTasks = userTasks.filter(t => t.status === 'done').length;
+                const totalTasks = userTasks.length;
+                const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+                const userDiv = document.createElement('div');
+                userDiv.style.cssText = 'margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px;';
+                userDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <strong>${user.name}</strong>
+                        <span>${completionRate}% complete</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${completionRate}%"></div>
+                    </div>
+                    <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                        ${completedTasks}/${totalTasks} tasks completed • ${user.businessUnit}
+                    </div>
+                `;
+                container.appendChild(userDiv);
+            });
+        }<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -299,6 +729,120 @@
             margin: 10px 0;
             border: 1px solid #c3e6cb;
         }
+        .search-bar {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .search-filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            align-items: end;
+        }
+        .overdue {
+            background: #fff5f5 !important;
+            border-left-color: #dc3545 !important;
+        }
+        .due-soon {
+            background: #fffdf5 !important;
+            border-left-color: #ffc107 !important;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover { color: black; }
+        .comments-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+        .comment {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 3px solid #667eea;
+        }
+        .comment-meta {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .comment-text {
+            font-size: 14px;
+            color: #333;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        .metric-card {
+            text-align: center;
+            padding: 20px;
+        }
+        .metric-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .metric-label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+        }
         @media (max-width: 768px) {
             .form-row { grid-template-columns: 1fr; }
             .app-header { flex-direction: column; gap: 15px; }
@@ -498,7 +1042,119 @@
         </div>
     </div>
 
-    <!-- Manage Users Screen -->
+    <!-- Dashboard Screen -->
+    <div id="dashboardScreen" class="login-container hidden">
+        <div class="login-box" style="max-width: 1200px;">
+            <h2>📊 Analytics Dashboard</h2>
+            <div id="dashboardStatusMessage" class="status-message hidden"></div>
+            
+            <!-- Key Metrics -->
+            <div class="dashboard-grid">
+                <div class="chart-container">
+                    <h3>📈 Overview Metrics</h3>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px;">
+                        <div class="metric-card">
+                            <div class="metric-number" id="totalTasksMetric">0</div>
+                            <div class="metric-label">Total Tasks</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-number" id="completionRateMetric">0%</div>
+                            <div class="metric-label">Completion Rate</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-number" id="overdueTasksMetric">0</div>
+                            <div class="metric-label">Overdue Tasks</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-number" id="activeUsersMetric">0</div>
+                            <div class="metric-label">Active Users</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>🏢 Business Unit Performance</h3>
+                    <div id="unitPerformance" style="margin-top: 15px;">
+                        <!-- Unit performance will be populated here -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- User Performance -->
+            <div class="chart-container" style="margin-bottom: 20px;">
+                <h3>👥 User Performance</h3>
+                <div id="userPerformance" style="margin-top: 15px;">
+                    <!-- User performance will be populated here -->
+                </div>
+            </div>
+            
+            <div style="text-align: center;">
+                <button id="backToMainFromDashboardBtn" class="btn btn-secondary" style="width: 100%;">
+                    ← Back to Main App
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Task Modal -->
+    <div id="editTaskModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Edit Task</h3>
+                <span class="close" onclick="closeEditModal()">&times;</span>
+            </div>
+            <form id="editTaskForm">
+                <input type="hidden" id="editTaskId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editTaskTitle">Task Title</label>
+                        <input type="text" id="editTaskTitle" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editTaskPriority">Priority</label>
+                        <select id="editTaskPriority" required>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editTaskAssignee">Assign To</label>
+                        <select id="editTaskAssignee" required>
+                            <option value="">Select User</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editTaskDueDate">Due Date</label>
+                        <input type="date" id="editTaskDueDate">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="editTaskDescription">Description</label>
+                    <textarea id="editTaskDescription" rows="3"></textarea>
+                </div>
+                
+                <!-- Comments Section -->
+                <div class="comments-section">
+                    <h4>💬 Comments</h4>
+                    <div id="taskComments" style="max-height: 200px; overflow-y: auto; margin: 10px 0;">
+                        <!-- Comments will be populated here -->
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <textarea id="newComment" placeholder="Add a comment..." rows="2" style="flex: 1;"></textarea>
+                        <button type="button" onclick="addComment()" class="btn" style="height: fit-content;">Add</button>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn" style="flex: 1;">Update Task</button>
+                    <button type="button" onclick="closeEditModal()" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <div id="manageUsersScreen" class="login-container hidden">
         <div class="login-box" style="max-width: 800px;">
             <h2>👥 User Management</h2>
@@ -541,6 +1197,7 @@
                     <span id="userName"></span>
                 </div>
                 <div>
+                    <button id="dashboardBtn" class="btn hidden" style="margin-right: 10px; background: #28a745;">📊 Dashboard</button>
                     <button id="manageUnitsBtn" class="btn hidden" style="margin-right: 10px; background: #6f42c1;">🏢 Manage Units</button>
                     <button id="createUserBtn" class="btn hidden" style="margin-right: 10px;">👤 Create User</button>
                     <button id="manageUsersBtn" class="btn hidden" style="margin-right: 10px; background: #dc3545;">👥 Manage Users</button>
@@ -583,6 +1240,45 @@
                     </div>
                     <button type="submit" class="btn">Add Task</button>
                 </form>
+            </div>
+
+            <!-- Search and Filter Bar -->
+            <div class="search-bar">
+                <h3>🔍 Search & Filter Tasks</h3>
+                <div class="search-filters">
+                    <div class="form-group">
+                        <label for="searchText">Search Tasks</label>
+                        <input type="text" id="searchText" placeholder="Search by title or description...">
+                    </div>
+                    <div class="form-group">
+                        <label for="filterAssignee">Filter by Assignee</label>
+                        <select id="filterAssignee">
+                            <option value="">All Users</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="filterPriority">Filter by Priority</label>
+                        <select id="filterPriority">
+                            <option value="">All Priorities</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="filterStatus">Filter by Status</label>
+                        <select id="filterStatus">
+                            <option value="">All Statuses</option>
+                            <option value="todo">To Do</option>
+                            <option value="inprogress">In Progress</option>
+                            <option value="review">Review</option>
+                            <option value="done">Done</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <button onclick="clearFilters()" class="btn btn-secondary" style="margin-top: 24px;">Clear Filters</button>
+                    </div>
+                </div>
             </div>
 
             <div class="kanban-board">
@@ -748,6 +1444,10 @@
             };
 
             // Admin buttons
+            document.getElementById('dashboardBtn').onclick = function() {
+                showDashboardScreen();
+            };
+
             document.getElementById('manageUnitsBtn').onclick = function() {
                 showBusinessUnitsScreen();
             };
@@ -771,6 +1471,10 @@
             document.getElementById('backToMainFromUsersBtn').onclick = function() {
                 showMainApp();
             };
+
+            document.getElementById('backToMainFromDashboardBtn').onclick = function() {
+                showMainApp();
+            };
             
             // Task form
             document.getElementById('taskForm').onsubmit = function(e) {
@@ -784,6 +1488,28 @@
                 addBusinessUnit();
             };
 
+            // Edit task form
+            document.getElementById('editTaskForm').onsubmit = function(e) {
+                e.preventDefault();
+                updateTask();
+            };
+
+            // Search and filter functionality
+            document.getElementById('searchText').oninput = function() {
+                loadKanbanBoard();
+            };
+            
+            document.getElementById('filterAssignee').onchange = function() {
+                loadKanbanBoard();
+            };
+            
+            document.getElementById('filterPriority').onchange = function() {
+                loadKanbanBoard();
+            };
+            
+            document.getElementById('filterStatus').onchange = function() {
+                loadKanbanBoard();
+            };
             // Create user form
             document.getElementById('createUserForm').onsubmit = function(e) {
                 e.preventDefault();
@@ -870,6 +1596,7 @@
             document.getElementById('businessUnitsScreen').classList.add('hidden');
             document.getElementById('createUserScreen').classList.add('hidden');
             document.getElementById('manageUsersScreen').classList.add('hidden');
+            document.getElementById('dashboardScreen').classList.add('hidden');
         }
 
         function showRegisterScreen() {
@@ -879,6 +1606,7 @@
             document.getElementById('businessUnitsScreen').classList.add('hidden');
             document.getElementById('createUserScreen').classList.add('hidden');
             document.getElementById('manageUsersScreen').classList.add('hidden');
+            document.getElementById('dashboardScreen').classList.add('hidden');
             populateBusinessUnitsInForm('regBusinessUnit');
         }
 
@@ -888,6 +1616,7 @@
             document.getElementById('businessUnitsScreen').classList.add('hidden');
             document.getElementById('createUserScreen').classList.add('hidden');
             document.getElementById('manageUsersScreen').classList.add('hidden');
+            document.getElementById('dashboardScreen').classList.add('hidden');
             document.getElementById('mainApp').classList.remove('hidden');
             
             // Update user info
@@ -899,14 +1628,18 @@
             document.getElementById('businessUnit').textContent = unit ? unit.name : currentUser.businessUnit;
             document.getElementById('businessUnit').className = `business-unit-badge unit-${currentUser.businessUnit}`;
             
-            // Show admin buttons
+            // Show admin/manager buttons
             if (currentUser.role === 'admin') {
+                document.getElementById('dashboardBtn').classList.remove('hidden');
                 document.getElementById('manageUnitsBtn').classList.remove('hidden');
                 document.getElementById('createUserBtn').classList.remove('hidden');
                 document.getElementById('manageUsersBtn').classList.remove('hidden');
+            } else if (currentUser.role === 'corporate-manager' || currentUser.role === 'business-manager') {
+                document.getElementById('dashboardBtn').classList.remove('hidden');
             }
             
             populateAssigneeSelect();
+            populateFilterDropdowns();
             loadKanbanBoard();
             setupDragAndDrop();
         }
@@ -917,6 +1650,7 @@
             document.getElementById('mainApp').classList.add('hidden');
             document.getElementById('createUserScreen').classList.add('hidden');
             document.getElementById('manageUsersScreen').classList.add('hidden');
+            document.getElementById('dashboardScreen').classList.add('hidden');
             document.getElementById('businessUnitsScreen').classList.remove('hidden');
             loadBusinessUnitsList();
         }
@@ -927,6 +1661,7 @@
             document.getElementById('mainApp').classList.add('hidden');
             document.getElementById('businessUnitsScreen').classList.add('hidden');
             document.getElementById('manageUsersScreen').classList.add('hidden');
+            document.getElementById('dashboardScreen').classList.add('hidden');
             document.getElementById('createUserScreen').classList.remove('hidden');
             populateBusinessUnitsInForm('createBusinessUnit');
         }
@@ -937,14 +1672,48 @@
             document.getElementById('mainApp').classList.add('hidden');
             document.getElementById('businessUnitsScreen').classList.add('hidden');
             document.getElementById('createUserScreen').classList.add('hidden');
+            document.getElementById('dashboardScreen').classList.add('hidden');
             document.getElementById('manageUsersScreen').classList.remove('hidden');
             loadUsersList();
         }
 
-        function logout() {
-            currentUser = null;
-            showLoginScreen();
-            document.getElementById('loginForm').reset();
+        function showDashboardScreen() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('businessUnitsScreen').classList.add('hidden');
+            document.getElementById('createUserScreen').classList.add('hidden');
+            document.getElementById('manageUsersScreen').classList.add('hidden');
+            document.getElementById('dashboardScreen').classList.remove('hidden');
+            loadDashboard();
+        }
+
+        function populateFilterDropdowns() {
+            // Populate filter assignee dropdown
+            const filterAssignee = document.getElementById('filterAssignee');
+            filterAssignee.innerHTML = '<option value="">All Users</option>';
+            
+            let availableUsers = [];
+            if (currentUser.role === 'admin' || currentUser.role === 'corporate-manager') {
+                availableUsers = users;
+            } else if (currentUser.role === 'business-manager') {
+                availableUsers = users.filter(user => 
+                    user.businessUnit === currentUser.businessUnit ||
+                    user.role === 'admin' ||
+                    user.role === 'corporate-manager'
+                );
+            } else {
+                availableUsers = users.filter(user => 
+                    user.businessUnit === currentUser.businessUnit
+                );
+            }
+            
+            availableUsers.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.username;
+                option.textContent = user.name;
+                filterAssignee.appendChild(option);
+            });
         }
 
         function populateBusinessUnitsInForm(selectId) {
